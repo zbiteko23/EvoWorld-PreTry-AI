@@ -1,0 +1,1045 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EvoWorld</title>
+<link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@300;400;500;600;700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&family=Share+Tech+Mono&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#060d08;--panel:#0a1510;--panel2:#0e1e16;--border:#1a3020;
+  --g0:#56e39f;--g1:#2e7d52;--g2:#1a4a2e;
+  --amber:#f4a261;--crimson:#e63946;--ice:#a8dadc;--gold:#ffd166;
+  --text:#c8e6c9;--muted:#4a7a5a;--dim:#2a4a34;
+  --ff-head:'Rajdhani',sans-serif;--ff-body:'Libre Baskerville',serif;--ff-mono:'Share Tech Mono',monospace;
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--bg);color:var(--text);font-family:var(--ff-body)}
+canvas{display:block}
+
+/* LAYOUT */
+#app{display:grid;grid-template-rows:48px 1fr;grid-template-columns:260px 1fr 280px;height:100vh;gap:0}
+#topbar{grid-column:1/-1;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;gap:1.5rem;padding:0 1.2rem;z-index:10}
+#sidebar-left{background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+#map-wrap{position:relative;background:var(--bg);overflow:hidden}
+#sidebar-right{background:var(--panel);border-left:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+
+/* TOPBAR */
+.logo{font-family:var(--ff-head);font-size:1.4rem;font-weight:700;color:var(--g0);letter-spacing:.1em;text-shadow:0 0 20px rgba(86,227,159,.4)}
+.top-stat{display:flex;flex-direction:column;align-items:center;min-width:60px}
+.top-stat-val{font-family:var(--ff-mono);font-size:.95rem;color:var(--gold)}
+.top-stat-lbl{font-family:var(--ff-mono);font-size:.55rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+.top-sep{width:1px;height:24px;background:var(--border)}
+.season-badge{font-family:var(--ff-mono);font-size:.7rem;letter-spacing:.12em;padding:.25rem .8rem;border-radius:20px;border:1px solid;text-transform:uppercase}
+.speed-btns{display:flex;gap:.3rem;margin-left:auto}
+.sp-btn{font-family:var(--ff-mono);font-size:.65rem;padding:.25rem .6rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.sp-btn.active,.sp-btn:hover{border-color:var(--g0);color:var(--g0);background:rgba(86,227,159,.08)}
+.btn-primary{font-family:var(--ff-head);font-weight:600;font-size:.8rem;letter-spacing:.1em;text-transform:uppercase;padding:.3rem 1rem;border-radius:5px;border:1px solid var(--g1);background:rgba(46,125,82,.25);color:var(--g0);cursor:pointer;transition:all .2s}
+.btn-primary:hover{background:rgba(46,125,82,.4);box-shadow:0 0 15px rgba(86,227,159,.2)}
+.btn-danger{border-color:var(--crimson);background:rgba(230,57,70,.15);color:var(--crimson)}
+.btn-danger:hover{background:rgba(230,57,70,.3)}
+
+/* PANELS */
+.panel-section{padding:.7rem .9rem;border-bottom:1px solid var(--border)}
+.panel-title{font-family:var(--ff-head);font-weight:600;font-size:.72rem;letter-spacing:.15em;text-transform:uppercase;color:var(--g1);margin-bottom:.5rem;display:flex;align-items:center;gap:.4rem}
+.panel-title::before{content:'';display:block;width:4px;height:4px;background:var(--g1);border-radius:50%}
+
+/* SPECIES CANVAS WRAP */
+#species-preview{display:flex;justify-content:center;align-items:center;padding:.8rem;background:radial-gradient(ellipse at 50% 50%,rgba(46,125,82,.08) 0%,transparent 70%)}
+#species-cvs{border-radius:8px}
+
+/* TRAIT SLIDERS */
+.traits-list{display:flex;flex-direction:column;gap:.45rem}
+.trait-row{display:grid;grid-template-columns:80px 1fr 28px;align-items:center;gap:.4rem}
+.trait-lbl{font-family:var(--ff-mono);font-size:.6rem;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--dim);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:11px;height:11px;border-radius:50%;background:var(--g0);cursor:pointer;box-shadow:0 0 6px rgba(86,227,159,.5)}
+.trait-v{font-family:var(--ff-mono);font-size:.65rem;color:var(--gold);text-align:right}
+
+/* DIET */
+.diet-row{display:flex;gap:.35rem;flex-wrap:wrap}
+.d-btn{font-family:var(--ff-mono);font-size:.58rem;letter-spacing:.06em;padding:.2rem .55rem;border-radius:4px;border:1px solid var(--border);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;text-transform:uppercase}
+.d-btn.active{border-color:var(--g0);color:var(--g0);background:rgba(86,227,159,.1)}
+.d-btn:hover:not(.active){border-color:var(--g1);color:var(--g1)}
+
+/* POINTS BAR */
+.pts-wrap{display:flex;align-items:center;gap:.5rem}
+.pts-track{flex:1;height:4px;background:var(--dim);border-radius:2px;overflow:hidden}
+.pts-fill{height:100%;background:linear-gradient(90deg,var(--g1),var(--g0));border-radius:2px;transition:width .2s}
+.pts-lbl{font-family:var(--ff-mono);font-size:.6rem;color:var(--muted);white-space:nowrap}
+.pts-val{font-family:var(--ff-mono);font-size:.65rem;color:var(--gold)}
+
+/* MAP CANVAS */
+#map-canvas{position:absolute;inset:0;width:100%;height:100%}
+#overlay-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+
+/* HUD */
+#hud{position:absolute;top:.8rem;left:.8rem;display:flex;flex-direction:column;gap:.4rem;pointer-events:none}
+.hud-chip{font-family:var(--ff-mono);font-size:.6rem;letter-spacing:.08em;padding:.2rem .6rem;border-radius:4px;background:rgba(6,13,8,.8);border:1px solid var(--border);color:var(--g0);backdrop-filter:blur(4px)}
+#disaster-alert{position:absolute;top:.8rem;right:.8rem;max-width:220px;font-family:var(--ff-mono);font-size:.62rem;letter-spacing:.05em;padding:.5rem .8rem;border-radius:6px;background:rgba(230,57,70,.15);border:1px solid rgba(230,57,70,.4);color:var(--crimson);backdrop-filter:blur(4px);display:none;animation:fadeInAlert .3s ease}
+@keyframes fadeInAlert{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+#season-overlay{position:absolute;inset:0;background:transparent;pointer-events:none;transition:background 3s}
+
+/* RIGHT PANEL */
+#evo-tree-canvas{display:block}
+.log-wrap{flex:1;overflow-y:auto;padding:.5rem .9rem;display:flex;flex-direction:column;gap:.25rem}
+.log-wrap::-webkit-scrollbar{width:3px}
+.log-wrap::-webkit-scrollbar-track{background:transparent}
+.log-wrap::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px}
+.log-entry{font-family:var(--ff-mono);font-size:.6rem;letter-spacing:.04em;color:var(--muted);line-height:1.5;border-left:2px solid var(--dim);padding-left:.5rem}
+.log-entry.important{color:var(--g0);border-left-color:var(--g1)}
+.log-entry.danger{color:var(--crimson);border-left-color:var(--crimson)}
+.log-entry.good{color:var(--gold);border-left-color:var(--amber)}
+
+/* BIOME LEGEND */
+.biome-legend{display:flex;flex-direction:column;gap:.3rem}
+.biome-item{display:flex;align-items:center;gap:.5rem;font-family:var(--ff-mono);font-size:.6rem;color:var(--muted)}
+.biome-dot{width:8px;height:8px;border-radius:2px;flex-shrink:0}
+
+/* SCREEN overlays */
+#screen-start,#screen-editor,#screen-dead{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;background:rgba(6,13,8,.95);backdrop-filter:blur(8px)}
+#screen-start.hidden,#screen-editor.hidden,#screen-dead.hidden{display:none}
+
+.modal-box{background:var(--panel2);border:1px solid var(--border);border-radius:12px;padding:2.5rem;max-width:520px;width:90%;box-shadow:0 0 80px rgba(86,227,159,.06)}
+.modal-title{font-family:var(--ff-head);font-weight:700;font-size:2.2rem;letter-spacing:.12em;color:var(--g0);text-align:center;text-shadow:0 0 30px rgba(86,227,159,.3);margin-bottom:.4rem}
+.modal-sub{font-family:var(--ff-mono);font-size:.68rem;letter-spacing:.15em;text-transform:uppercase;color:var(--muted);text-align:center;margin-bottom:2rem}
+.modal-section{margin-bottom:1.5rem}
+.modal-section-title{font-family:var(--ff-head);font-weight:600;font-size:.75rem;letter-spacing:.12em;text-transform:uppercase;color:var(--g1);margin-bottom:.8rem}
+.name-input{width:100%;background:var(--bg);border:1px solid var(--border);border-radius:6px;padding:.6rem .9rem;font-family:var(--ff-mono);font-size:.85rem;color:var(--g0);outline:none;letter-spacing:.1em;transition:border-color .2s}
+.name-input:focus{border-color:var(--g1)}
+#editor-species-cvs{border-radius:10px;display:block;margin:0 auto}
+.editor-traits{display:grid;grid-template-columns:1fr 1fr;gap:.6rem;margin-top:.8rem}
+.editor-trait-row{display:grid;grid-template-columns:90px 1fr 28px;align-items:center;gap:.4rem}
+
+.big-btn{width:100%;font-family:var(--ff-head);font-weight:700;font-size:1rem;letter-spacing:.2em;text-transform:uppercase;padding:.9rem;border-radius:8px;border:1px solid var(--g1);background:linear-gradient(135deg,rgba(46,125,82,.3),rgba(86,227,159,.1));color:var(--g0);cursor:pointer;transition:all .3s;margin-top:.5rem}
+.big-btn:hover{background:linear-gradient(135deg,rgba(46,125,82,.5),rgba(86,227,159,.2));box-shadow:0 0 30px rgba(86,227,159,.2);transform:translateY(-1px)}
+
+/* dead screen */
+.dead-title{font-family:var(--ff-head);font-weight:700;font-size:2.5rem;color:var(--crimson);text-align:center;letter-spacing:.1em;text-shadow:0 0 40px rgba(230,57,70,.4)}
+.dead-stats{display:grid;grid-template-columns:1fr 1fr;gap:.8rem;margin:1.5rem 0}
+.dead-stat{background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:.8rem;text-align:center}
+.dead-stat-n{font-family:var(--ff-head);font-weight:700;font-size:1.8rem;color:var(--gold)}
+.dead-stat-l{font-family:var(--ff-mono);font-size:.6rem;color:var(--muted);letter-spacing:.1em;text-transform:uppercase}
+
+/* scrollbar global */
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px}
+
+/* tooltip */
+#tooltip{position:fixed;z-index:200;pointer-events:none;background:rgba(6,13,8,.95);border:1px solid var(--border);border-radius:6px;padding:.4rem .7rem;font-family:var(--ff-mono);font-size:.62rem;color:var(--g0);display:none;max-width:160px;line-height:1.5;letter-spacing:.04em}
+</style>
+</head>
+<body>
+
+<div id="tooltip"></div>
+
+<!-- START SCREEN -->
+<div id="screen-start">
+  <div class="modal-box">
+    <div class="modal-title">EvoWorld</div>
+    <div class="modal-sub">Procedurálně generovaný ekosystém</div>
+    <div class="modal-section">
+      <div class="modal-section-title">Název tvého druhu</div>
+      <input class="name-input" id="species-name-input" placeholder="Primordius" maxlength="24" value="Primordius">
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Vizuální náhled</div>
+      <canvas id="editor-species-cvs" width="200" height="200"></canvas>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Vlastnosti (100 bodů)</div>
+      <div class="editor-traits" id="editor-traits-wrap"></div>
+      <div class="pts-wrap" style="margin-top:.7rem">
+        <span class="pts-lbl">Využito</span>
+        <div class="pts-track"><div class="pts-fill" id="editor-pts-fill" style="width:50%"></div></div>
+        <span class="pts-val" id="editor-pts-val">50/100</span>
+      </div>
+    </div>
+    <div class="modal-section">
+      <div class="modal-section-title">Strava</div>
+      <div class="diet-row" id="editor-diet-row"></div>
+    </div>
+    <button class="big-btn" onclick="startGame()">▶ Začít evoluci</button>
+  </div>
+</div>
+
+<!-- DEAD SCREEN -->
+<div id="screen-dead" class="hidden">
+  <div class="modal-box" style="max-width:400px">
+    <div class="dead-title">VYMŘELI JSTE</div>
+    <div style="font-family:var(--ff-mono);font-size:.68rem;color:var(--muted);text-align:center;margin:.5rem 0 1.5rem;letter-spacing:.1em" id="dead-reason"></div>
+    <div class="dead-stats" id="dead-stats"></div>
+    <button class="big-btn btn-danger" onclick="restartGame()">↺ Nová hra</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+  <!-- TOP BAR -->
+  <div id="topbar">
+    <div class="logo">EvoWorld</div>
+    <div class="top-sep"></div>
+    <div class="top-stat"><span class="top-stat-val" id="stat-season">—</span><span class="top-stat-lbl">Sezóna</span></div>
+    <div class="top-stat"><span class="top-stat-val" id="stat-year">1</span><span class="top-stat-lbl">Rok</span></div>
+    <div class="top-stat"><span class="top-stat-val" id="stat-pop" style="color:var(--g0)">0</span><span class="top-stat-lbl">Populace</span></div>
+    <div class="top-stat"><span class="top-stat-val" id="stat-territory" style="color:var(--ice)">0%</span><span class="top-stat-lbl">Území</span></div>
+    <div class="top-stat"><span class="top-stat-val" id="stat-mutations" style="color:var(--gold)">0</span><span class="top-stat-lbl">Mutací</span></div>
+    <div class="top-sep"></div>
+    <div class="season-badge" id="season-badge" style="color:#4caf7d;border-color:#2e7d52">🌸 Jaro</div>
+    <div class="speed-btns">
+      <button class="sp-btn" onclick="setSpeed(0)">⏸</button>
+      <button class="sp-btn active" onclick="setSpeed(1)">1×</button>
+      <button class="sp-btn" onclick="setSpeed(2)">2×</button>
+      <button class="sp-btn" onclick="setSpeed(4)">4×</button>
+    </div>
+    <div class="top-sep"></div>
+    <button class="btn-primary" onclick="openMutationEditor()">⚡ Mutovat</button>
+    <button class="btn-primary btn-danger" onclick="triggerDisaster()">☄ Katastrofa</button>
+  </div>
+
+  <!-- LEFT PANEL: Species info + map legend -->
+  <div id="sidebar-left">
+    <div id="species-preview">
+      <canvas id="species-cvs" width="220" height="180"></canvas>
+    </div>
+    <div class="panel-section">
+      <div class="panel-title">Tvůj druh</div>
+      <div style="font-family:var(--ff-head);font-weight:600;font-size:1.1rem;color:var(--g0);letter-spacing:.08em;margin-bottom:.3rem" id="species-display-name">Primordius</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:.4rem">
+        <div class="top-stat" style="align-items:flex-start"><span class="top-stat-val" id="disp-pop" style="color:var(--g0)">—</span><span class="top-stat-lbl">Populace</span></div>
+        <div class="top-stat" style="align-items:flex-start"><span class="top-stat-val" id="disp-gen" style="color:var(--gold)">1</span><span class="top-stat-lbl">Generace</span></div>
+        <div class="top-stat" style="align-items:flex-start"><span class="top-stat-val" id="disp-biome" style="color:var(--ice)">—</span><span class="top-stat-lbl">Biom</span></div>
+        <div class="top-stat" style="align-items:flex-start"><span class="top-stat-val" id="disp-fitness" style="color:var(--amber)">—</span><span class="top-stat-lbl">Fitness</span></div>
+      </div>
+    </div>
+    <div class="panel-section" style="flex:1;overflow-y:auto">
+      <div class="panel-title">Vlastnosti</div>
+      <div class="traits-list" id="traits-display"></div>
+      <div style="margin-top:.7rem">
+        <div class="panel-title">Strava</div>
+        <span id="diet-display" style="font-family:var(--ff-mono);font-size:.7rem;color:var(--g0)"></span>
+      </div>
+    </div>
+    <div class="panel-section">
+      <div class="panel-title">Mapa</div>
+      <div class="biome-legend" id="biome-legend"></div>
+    </div>
+  </div>
+
+  <!-- CENTER: MAP -->
+  <div id="map-wrap">
+    <canvas id="map-canvas"></canvas>
+    <canvas id="overlay-canvas"></canvas>
+    <div id="season-overlay"></div>
+    <div id="hud">
+      <div class="hud-chip" id="hud-seed">SEED: —</div>
+      <div class="hud-chip" id="hud-biome">Biom: —</div>
+      <div class="hud-chip" id="hud-food">Potrava: —</div>
+    </div>
+    <div id="disaster-alert"></div>
+  </div>
+
+  <!-- RIGHT PANEL: Evo tree + log -->
+  <div id="sidebar-right">
+    <div class="panel-section">
+      <div class="panel-title">Evoluční strom</div>
+      <canvas id="evo-tree-canvas" width="256" height="200"></canvas>
+    </div>
+    <div class="panel-section" style="flex:0">
+      <div class="panel-title">Herní záznamy</div>
+    </div>
+    <div class="log-wrap" id="game-log"></div>
+  </div>
+
+</div>
+
+<!-- MUTATION EDITOR OVERLAY -->
+<div id="screen-editor" class="hidden">
+  <div class="modal-box">
+    <div class="modal-title" style="font-size:1.6rem">Sezónní mutace</div>
+    <div class="modal-sub" id="mutation-sub">Vyber jak chceš svůj druh přizpůsobit</div>
+    <canvas id="mut-species-cvs" width="180" height="180" style="display:block;margin:0 auto .8rem"></canvas>
+    <div class="editor-traits" id="mut-traits-wrap"></div>
+    <div class="pts-wrap" style="margin:.7rem 0">
+      <span class="pts-lbl">Body</span>
+      <div class="pts-track"><div class="pts-fill" id="mut-pts-fill" style="width:50%"></div></div>
+      <span class="pts-val" id="mut-pts-val">50/100</span>
+    </div>
+    <div class="diet-row" id="mut-diet-row" style="margin-bottom:1rem"></div>
+    <button class="big-btn" onclick="applyMutation()">✓ Potvrdit mutaci</button>
+  </div>
+</div>
+
+<script>
+// =========================================================
+// EVOWORLD  –  full game engine
+// =========================================================
+
+// ---- Perlin noise ----
+const Noise=(()=>{
+  const p=new Uint8Array(512);
+  let sd=0;
+  function seed(s){sd=s>>>0;let n=sd;for(let i=0;i<256;i++)p[i]=i;for(let i=255;i>0;i--){n=(n*1664525+1013904223)>>>0;const j=n%(i+1);[p[i],p[j]]=[p[j],p[i]]}for(let i=0;i<256;i++)p[256+i]=p[i]}
+  const g2=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+  function fade(t){return t*t*t*(t*(t*6-15)+10)}
+  function lerp(a,b,t){return a+(b-a)*t}
+  function dot(g,x,y){return g[0]*x+g[1]*y}
+  function n2(x,y){
+    const X=Math.floor(x)&255,Y=Math.floor(y)&255;
+    const xf=x-Math.floor(x),yf=y-Math.floor(y);
+    const u=fade(xf),v=fade(yf);
+    const aa=p[p[X]+Y],ab=p[p[X]+Y+1],ba=p[p[X+1]+Y],bb=p[p[X+1]+Y+1];
+    return lerp(lerp(dot(g2[aa&7],xf,yf),dot(g2[ba&7],xf-1,yf),u),lerp(dot(g2[ab&7],xf,yf-1),dot(g2[bb&7],xf-1,yf-1),u),v);
+  }
+  function fbm(x,y,oct=6,lac=2,per=.5){let v=0,a=1,f=1,mx=0;for(let i=0;i<oct;i++){v+=n2(x*f,y*f)*a;mx+=a;a*=per;f*=lac}return v/mx}
+  return{seed,fbm,n2};
+})();
+
+// ---- RNG ----
+function mulberry32(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let rng;
+
+// ---- WORLD MAP CONSTANTS ----
+const TW=120,TH=90; // tile grid
+const TILE_OCEAN=0,TILE_SHORE=1,TILE_PLAIN=2,TILE_FOREST=3,TILE_JUNGLE=4,TILE_DESERT=5,TILE_MOUNTAIN=6,TILE_ARCTIC=7;
+const BIOME_COLORS=[
+  ['#061E35','#0A2E4A'],  // ocean
+  ['#C8B870','#D4C880'],  // shore
+  ['#5A8A42','#6EA052'],  // plain
+  ['#1A5C2E','#2E7040'],  // forest
+  ['#1E7A3A','#2A8E4A'],  // jungle
+  ['#C8943A','#D8A848'],  // desert
+  ['#6A6A6A','#7A7A7A'],  // mountain
+  ['#C8E8F0','#DCF0F8'],  // arctic
+];
+const BIOME_NAMES=['Oceán','Pobřeží','Pláně','Les','Džungle','Poušť','Hory','Arktida'];
+const BIOME_FOOD=[0,1,2,3,4,1,1,1];   // food richness per biome
+const BIOME_WATER=[5,4,2,3,4,0,1,2];
+
+const SEASONS_DATA=[
+  {name:'Jaro',icon:'🌸',color:'#4caf7d',borderColor:'#2e7d52',sky:null,foodMul:1.3,popMul:1.1},
+  {name:'Léto',icon:'☀️',color:'#f4a261',borderColor:'#c07a3a',sky:null,foodMul:1.1,popMul:1.0},
+  {name:'Podzim',icon:'🍂',color:'#e63946',borderColor:'#a02030',sky:null,foodMul:.8,popMul:.9},
+  {name:'Zima',icon:'❄️',color:'#a8dadc',borderColor:'#5a9aac',sky:'rgba(200,232,250,.04)',foodMul:.4,popMul:.7},
+];
+
+// ---- GAME STATE ----
+let G={
+  started:false, seed:0, world:null, entities:[],
+  player:{name:'Primordius',traits:{size:40,speed:50,strength:40,intelligence:50,defense:40,vision:50},diet:'herbivor',
+          pop:20,gen:1,mutations:0,x:60,y:45,territory:0,fitness:0,history:[]},
+  tick:0, seasonTick:0, seasonIdx:0, year:1,
+  speed:1, paused:false,
+  log:[], evoNodes:[],
+  disasters:0
+};
+
+// ---- SPECIES TRAITS DEF ----
+const TRAITS_DEF=[
+  {k:'size',      label:'Velikost',   desc:'Větší → víc HP, míň rychlosti'},
+  {k:'speed',     label:'Rychlost',   desc:'Vyšší → rychlejší pohyb a útěk'},
+  {k:'strength',  label:'Síla',       desc:'Vyšší → silnější útok, predace'},
+  {k:'intelligence',label:'Inteligence',desc:'Vyšší → lepší hledání potravy'},
+  {k:'defense',   label:'Obrana',     desc:'Vyšší → odolnost vůči predátorům'},
+  {k:'vision',    label:'Zrak',       desc:'Vyšší → větší dosah hledání'},
+];
+const DIETS_DEF=[
+  {k:'herbivor',label:'🌿 Herbivor',color:'#2e7d52'},
+  {k:'karnivor',label:'🥩 Karnivor',color:'#e63946'},
+  {k:'omnivor', label:'🍖 Omnivor', color:'#f4a261'},
+  {k:'parazit', label:'🦠 Parazit', color:'#9b59b6'},
+];
+
+// ---- WORLD GENERATION ----
+function generateWorld(seed){
+  Noise.seed(seed);rng=mulberry32(seed);
+  const tiles=new Uint8Array(TW*TH);
+  const height=new Float32Array(TW*TH);
+  const moisture=new Float32Array(TW*TH);
+  for(let y=0;y<TH;y++)for(let x=0;x<TW;x++){
+    const nx=x/TW*5-2.5,ny=y/TH*5-2.5;
+    let h=(Noise.fbm(nx,ny,7,.5,2)+1)*.5;
+    // island gradient
+    const cx=x/TW*2-1,cy=y/TH*2-1;
+    const d=Math.sqrt(cx*cx+cy*cy);
+    h=Math.max(0,Math.min(1,h-Math.max(0,d-.55)*1.3));
+    const m=(Noise.fbm(nx+100,ny+200,5,.5,2)+1)*.5;
+    height[y*TW+x]=h; moisture[y*TW+x]=m;
+    let t;
+    if(h<.22)t=TILE_OCEAN;
+    else if(h<.28)t=TILE_SHORE;
+    else if(h>.72)t=TILE_MOUNTAIN;
+    else{
+      if(m>.65&&h<.6)t=TILE_JUNGLE;
+      else if(m>.4&&h<.65)t=TILE_FOREST;
+      else if(m<.25)t=TILE_DESERT;
+      else t=TILE_PLAIN;
+    }
+    tiles[y*TW+x]=t;
+  }
+  // Arctic poles
+  for(let x=0;x<TW;x++){for(let y=0;y<6;y++)tiles[y*TW+x]=TILE_ARCTIC;for(let y=TH-5;y<TH;y++)tiles[y*TW+x]=TILE_ARCTIC;}
+  return{tiles,height,moisture};
+}
+
+// ---- RENDER MAP ----
+let mapImg=null; // cached ImageData
+function renderWorldTiles(season){
+  const cvs=document.getElementById('map-canvas');
+  const {width:W,height:H}=cvs;
+  const ctx=cvs.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if(!G.world)return;
+  const tw=W/TW,th=H/TH;
+  // only redraw if season changed or first time
+  const seaSnow=season===3;
+  for(let y=0;y<TH;y++)for(let x=0;x<TW;x++){
+    let t=G.world.tiles[y*TW+x];
+    if(seaSnow&&t===TILE_PLAIN&&G.world.moisture[y*TW+x]>.3)t=TILE_ARCTIC;
+    const shade=((x+y)%2===0)?0:1;
+    ctx.fillStyle=BIOME_COLORS[t][shade];
+    ctx.fillRect(Math.floor(x*tw),Math.floor(y*th),Math.ceil(tw)+1,Math.ceil(th)+1);
+  }
+  // rivers
+  ctx.strokeStyle='rgba(100,180,220,.3)';ctx.lineWidth=1;
+  const r2=mulberry32(G.seed+7);
+  for(let r=0;r<4;r++){
+    let rx=r2()*TW,ry=0;
+    ctx.beginPath();ctx.moveTo(rx*tw,0);
+    for(let s=0;s<TH;s++){rx+=(r2()-.5)*3;rx=Math.max(2,Math.min(TW-2,rx));ctx.lineTo(rx*tw,(s+1)*th);}
+    ctx.stroke();
+  }
+  mapImg=true;
+}
+
+let overlayAnim=0;
+function renderOverlay(){
+  const cvs=document.getElementById('overlay-canvas');
+  const {width:W,height:H}=cvs;
+  const ctx=cvs.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if(!G.started)return;
+  const tw=W/TW,th=H/TH;
+  overlayAnim+=.018;
+
+  // Other species (AI)
+  G.entities.forEach(e=>{
+    const sx=e.x*tw,sy=e.y*th;
+    const r=3+e.size*.04;
+    ctx.beginPath();ctx.arc(sx,sy,r,0,Math.PI*2);
+    const alpha=.5+Math.sin(overlayAnim*1.3+e.id)*.1;
+    ctx.fillStyle=`hsla(${e.hue},60%,45%,${alpha})`;
+    ctx.fill();
+    ctx.strokeStyle=`hsla(${e.hue},60%,65%,.4)`;ctx.lineWidth=.8;ctx.stroke();
+    // population circle
+    if(e.pop>5){
+      ctx.beginPath();ctx.arc(sx,sy,r+e.pop*.08,0,Math.PI*2);
+      ctx.strokeStyle=`hsla(${e.hue},50%,55%,.12)`;ctx.lineWidth=1;ctx.stroke();
+    }
+  });
+
+  // Player territory halo
+  const p=G.player;
+  const px=p.x*tw,py=p.y*th;
+  const trad=(30+p.pop*.15+p.traits.vision*.3)*Math.min(1,tw/6);
+  const halo=ctx.createRadialGradient(px,py,trad*.3,px,py,trad);
+  halo.addColorStop(0,'rgba(86,227,159,.06)');
+  halo.addColorStop(1,'rgba(86,227,159,0)');
+  ctx.beginPath();ctx.arc(px,py,trad,0,Math.PI*2);
+  ctx.fillStyle=halo;ctx.fill();
+
+  // Player entity
+  const pulse=Math.sin(overlayAnim*2)*.08;
+  const pr=5+p.pop*.06;
+  ctx.beginPath();ctx.arc(px,py,pr*(1+pulse),0,Math.PI*2);
+  const pgrad=ctx.createRadialGradient(px-pr*.3,py-pr*.3,pr*.1,px,py,pr*(1+pulse));
+  pgrad.addColorStop(0,'#a8f0c8');pgrad.addColorStop(.6,'#56e39f');pgrad.addColorStop(1,'#2e7d52');
+  ctx.fillStyle=pgrad;ctx.fill();
+  ctx.strokeStyle='rgba(86,227,159,.8)';ctx.lineWidth=1.5;ctx.stroke();
+  // glow
+  ctx.beginPath();ctx.arc(px,py,pr*2.5,0,Math.PI*2);
+  const glow=ctx.createRadialGradient(px,py,0,px,py,pr*2.5);
+  glow.addColorStop(0,'rgba(86,227,159,.15)');glow.addColorStop(1,'rgba(86,227,159,0)');
+  ctx.fillStyle=glow;ctx.fill();
+
+  // population label
+  ctx.font=`bold 9px 'Share Tech Mono'`;ctx.fillStyle='rgba(86,227,159,.9)';ctx.textAlign='center';
+  ctx.fillText(p.pop,px,py-pr-4);ctx.textAlign='left';
+}
+
+// ---- CANVAS RESIZE ----
+function resizeCanvases(){
+  const wrap=document.getElementById('map-wrap');
+  const W=wrap.clientWidth,H=wrap.clientHeight;
+  ['map-canvas','overlay-canvas'].forEach(id=>{
+    const c=document.getElementById(id);
+    c.width=W;c.height=H;
+  });
+  if(G.world)renderWorldTiles(G.seasonIdx);
+}
+
+// ---- ENTITIES ----
+function spawnEntities(){
+  G.entities=[];
+  const names=['Ferrox','Velidon','Crysax','Umbris','Thalor','Nexum','Voran','Sylph'];
+  for(let i=0;i<8;i++){
+    let ex,ey,tile;
+    do{ex=5+Math.floor(rng()*( TW-10));ey=5+Math.floor(rng()*(TH-10));tile=G.world.tiles[ey*TW+ex];}while(tile===TILE_OCEAN);
+    G.entities.push({id:i,name:names[i],x:ex,y:ey,pop:5+Math.floor(rng()*20),
+      size:20+rng()*60,hue:Math.floor(rng()*360),diet:['herbivor','karnivor','omnivor'][Math.floor(rng()*3)],
+      alive:true,fitness:50+rng()*30});
+  }
+}
+
+// ---- GAME LOOP ----
+let lastTime=0;
+let accumulator=0;
+const TICK_MS=400; // base tick
+function gameLoop(ts){
+  requestAnimationFrame(gameLoop);
+  if(!G.started||G.paused)return;
+  const dt=Math.min(ts-lastTime,200);
+  lastTime=ts;
+  accumulator+=dt*G.speed;
+  while(accumulator>=TICK_MS){
+    accumulator-=TICK_MS;
+    gameTick();
+  }
+  renderOverlay();
+}
+
+function gameTick(){
+  G.tick++;
+  G.seasonTick++;
+  const SEASON_LEN=60; // ticks per season
+  if(G.seasonTick>=SEASON_LEN){G.seasonTick=0;advanceSeason();}
+  updatePlayer();
+  updateEntities();
+  updateHUD();
+  if(G.tick%5===0)drawSpeciesCanvas();
+}
+
+function advanceSeason(){
+  G.seasonIdx=(G.seasonIdx+1)%4;
+  if(G.seasonIdx===0)G.year++;
+  const s=SEASONS_DATA[G.seasonIdx];
+  // Update season badge
+  const badge=document.getElementById('season-badge');
+  badge.textContent=`${s.icon} ${s.name}`;
+  badge.style.color=s.color;badge.style.borderColor=s.borderColor;
+  document.getElementById('stat-season').textContent=s.name;
+  document.getElementById('stat-year').textContent=G.year;
+  // Redraw world (snow in winter)
+  renderWorldTiles(G.seasonIdx);
+  // Season overlay tint
+  const ov=document.getElementById('season-overlay');
+  ov.style.background=s.sky||'transparent';
+  // Log
+  const msgs={0:'🌸 Jaro – vegetace kvete, populace roste',1:'☀️ Léto – velká aktivita druhů',2:'🍂 Podzim – migrace a příprava na zimu',3:'❄️ Zima – přežití na hranici'};
+  addLog(msgs[G.seasonIdx],'important');
+  // Winter check – low pop could die
+  if(G.seasonIdx===3&&G.player.pop<5){
+    setTimeout(()=>killPlayer('Váš druh nepřežil zimu – příliš malá populace.'),1200);
+  }
+  // Evo tree node
+  if(G.seasonIdx===0&&G.year>1){
+    addEvoNode(`${G.player.name} – Rok ${G.year}`,false);
+    drawEvoTree();
+  }
+}
+
+function updatePlayer(){
+  const p=G.player;
+  const s=SEASONS_DATA[G.seasonIdx];
+  const tile=p.x>=0&&p.x<TW&&p.y>=0&&p.y<TH?G.world.tiles[Math.floor(p.y)*TW+Math.floor(p.x)]:TILE_PLAIN;
+  const foodBase=BIOME_FOOD[tile]*s.foodMul;
+  const intel=p.traits.intelligence/100;
+  const spd=p.traits.speed/100;
+  const def=p.traits.defense/100;
+  const sz=p.traits.size/100;
+
+  // Diet food efficiency
+  const dietBonus={herbivor:tile===TILE_FOREST||tile===TILE_JUNGLE||tile===TILE_PLAIN?1.3:.7,
+                   karnivor:G.entities.filter(e=>e.alive&&dist(p,e)<15).length>0?1.4:.5,
+                   omnivor:1.0,parazit:1.1};
+  const foodEff=foodBase*intel*(dietBonus[p.diet]||1);
+
+  // Pop dynamics
+  const growRate=foodEff*.08*s.popMul;
+  const deathRate=(.02+sz*.01)*(G.seasonIdx===3?.04:.01);
+  // Predator threat
+  const threat=G.entities.filter(e=>e.alive&&e.diet==='karnivor'&&dist(p,e)<20).length;
+  const predDeath=threat*.015*(1-def*.5);
+  const competition=G.entities.filter(e=>e.alive&&dist(p,e)<10).length*.003;
+
+  p.pop=Math.max(0,Math.round(p.pop+p.pop*(growRate-deathRate-predDeath-competition)));
+
+  // Move player toward food
+  const moveSpd=1.2+spd*1.5;
+  const angle=Noise.n2(G.tick*.05,p.y*.1)*Math.PI*2+Noise.n2(p.x*.1,G.tick*.03)*Math.PI;
+  p.x=Math.max(2,Math.min(TW-2,p.x+Math.cos(angle)*moveSpd*.5));
+  p.y=Math.max(2,Math.min(TH-2,p.y+Math.sin(angle)*moveSpd*.4));
+
+  // Territory
+  p.territory=Math.round(Math.min(100,(p.pop*.1+p.traits.vision*.2)));
+  // Fitness
+  p.fitness=Math.round((foodEff*30+p.pop*.5+p.gen*5+(100-threat*5))*.8);
+
+  if(p.pop<=0)killPlayer('Váš druh vyhynul – populace klesla na nulu.');
+
+  // Random events
+  if(G.tick%23===0&&Math.random()<.1)randomEvent();
+}
+
+function updateEntities(){
+  G.entities.forEach(e=>{
+    if(!e.alive)return;
+    const s=SEASONS_DATA[G.seasonIdx];
+    e.pop=Math.max(0,Math.round(e.pop+e.pop*(.03-.015)*s.popMul+(rng()-.5)*.5));
+    // move
+    e.x=Math.max(2,Math.min(TW-2,e.x+(rng()-.5)*2));
+    e.y=Math.max(2,Math.min(TH-2,e.y+(rng()-.5)*2));
+    if(e.pop<=0){e.alive=false;addLog(`💀 ${e.name} vymřel.`,'danger');}
+  });
+}
+
+function dist(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2)}
+
+function killPlayer(reason){
+  if(!G.started)return;
+  G.started=false;
+  document.getElementById('dead-reason').textContent=reason;
+  document.getElementById('dead-stats').innerHTML=`
+    <div class="dead-stat"><div class="dead-stat-n">${G.year}</div><div class="dead-stat-l">Přežitých let</div></div>
+    <div class="dead-stat"><div class="dead-stat-n">${G.player.mutations}</div><div class="dead-stat-l">Mutací</div></div>
+    <div class="dead-stat"><div class="dead-stat-n">${G.player.gen}</div><div class="dead-stat-l">Generace</div></div>
+    <div class="dead-stat"><div class="dead-stat-n">${G.player.territory}%</div><div class="dead-stat-l">Max území</div></div>
+  `;
+  document.getElementById('screen-dead').classList.remove('hidden');
+}
+
+function randomEvent(){
+  const events=[
+    {msg:'🌧️ Vydatné deště – zdroje potravy +20%',pop:+3,type:'good'},
+    {msg:'🌡️ Vedro – populace oslabena',pop:-2,type:'danger'},
+    {msg:'🦠 Drobná nákaza – obrana důležitá',pop:-4,type:'danger'},
+    {msg:'🌱 Nové potravní zdroje nalezeny',pop:+5,type:'good'},
+    {msg:'🌪️ Bouře – slabí jedinci zahynuli',pop:-3,type:'danger'},
+    {msg:'☀️ Ideální podmínky – rozmnožení',pop:+8,type:'good'},
+  ];
+  const ev=events[Math.floor(Math.random()*events.length)];
+  G.player.pop=Math.max(1,G.player.pop+ev.pop);
+  addLog(ev.msg,ev.type);
+}
+
+// ---- HUD ----
+function updateHUD(){
+  const p=G.player;
+  const tile=p.x>=0&&p.x<TW&&p.y>=0&&p.y<TH?G.world.tiles[Math.floor(p.y)*TW+Math.floor(p.x)]:TILE_PLAIN;
+  document.getElementById('stat-pop').textContent=p.pop;
+  document.getElementById('stat-territory').textContent=p.territory+'%';
+  document.getElementById('stat-mutations').textContent=p.mutations;
+  document.getElementById('disp-pop').textContent=p.pop;
+  document.getElementById('disp-gen').textContent=p.gen;
+  document.getElementById('disp-biome').textContent=BIOME_NAMES[tile]||'—';
+  document.getElementById('disp-fitness').textContent=p.fitness;
+  document.getElementById('hud-biome').textContent='Biom: '+(BIOME_NAMES[tile]||'—');
+  document.getElementById('hud-food').textContent='Potrava: '+(BIOME_FOOD[tile]*SEASONS_DATA[G.seasonIdx].foodMul).toFixed(1);
+}
+
+// ---- LOG ----
+function addLog(msg,type=''){
+  const wrap=document.getElementById('game-log');
+  const tick=`T${String(G.tick).padStart(4,'0')}`;
+  const div=document.createElement('div');
+  div.className='log-entry '+(type||'');
+  div.textContent=`[${tick}] ${msg}`;
+  wrap.appendChild(div);
+  wrap.scrollTop=wrap.scrollHeight;
+  if(wrap.children.length>120)wrap.removeChild(wrap.firstChild);
+}
+
+// ---- SPECIES CANVAS ----
+let specAnim=0;
+function drawSpeciesCanvas(targetId='species-cvs',traits=null,diet=null){
+  const cvs=document.getElementById(targetId);
+  if(!cvs)return;
+  const ctx=cvs.getContext('2d');
+  const W=cvs.width,H=cvs.height;
+  specAnim+=.02;
+  ctx.clearRect(0,0,W,H);
+  const tr=traits||G.player.traits;
+  const di=diet||G.player.diet;
+  drawCreature(ctx,W/2,H/2,tr,di,specAnim,W*.38);
+}
+
+function drawCreature(ctx,cx,cy,tr,diet,anim,maxSz){
+  const sz=Math.min(maxSz,(20+tr.size*.45));
+  const spd=tr.speed,str=tr.strength,int_=tr.intelligence,def=tr.defense,vis=tr.vision;
+  const DIET_COL={herbivor:'#2e7d52',karnivor:'#c0392b',omnivor:'#d4891a',parazit:'#6c3483'};
+  const col=DIET_COL[diet]||'#2e7d52';
+  const breathe=Math.sin(anim*1.6)*.04;
+
+  // bg glow
+  const bg=ctx.createRadialGradient(cx,cy,0,cx,cy,sz*2);
+  bg.addColorStop(0,col+'22');bg.addColorStop(1,'transparent');
+  ctx.beginPath();ctx.arc(cx,cy,sz*2.2,0,Math.PI*2);ctx.fillStyle=bg;ctx.fill();
+
+  // Wings (speed)
+  if(spd>60){
+    const wf=Math.sin(anim*3.5)*.25;
+    ctx.fillStyle=col+'55';
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.quadraticCurveTo(cx-sz*2.2,cy-sz*(1.2+wf),cx-sz*.25,cy-sz*.3);ctx.closePath();ctx.fill();
+    ctx.beginPath();ctx.moveTo(cx,cy);ctx.quadraticCurveTo(cx+sz*2.2,cy-sz*(1.2+wf),cx+sz*.25,cy-sz*.3);ctx.closePath();ctx.fill();
+  }
+  // Shell / armor (defense)
+  if(def>55){
+    const plates=Math.floor(4+(def-55)/15);
+    for(let i=0;i<plates;i++){
+      const a=(i/plates)*Math.PI*2+anim*.1;
+      ctx.beginPath();ctx.ellipse(cx+Math.cos(a)*sz*.85,cy+Math.sin(a)*sz*.85,sz*.22,sz*.15,a,0,Math.PI*2);
+      ctx.fillStyle=`rgba(80,80,100,${.4+(def-55)/100})`;ctx.fill();
+    }
+  }
+  // Body
+  const grad=ctx.createRadialGradient(cx-sz*.25,cy-sz*.2,sz*.05,cx,cy,sz*(1+breathe));
+  grad.addColorStop(0,lighten(col,50));grad.addColorStop(.5,col);grad.addColorStop(1,darken(col,30));
+  ctx.beginPath();ctx.ellipse(cx,cy,sz*(1+breathe),sz*.82*(1+breathe),0,0,Math.PI*2);
+  ctx.fillStyle=grad;ctx.fill();
+  ctx.strokeStyle=lighten(col,25);ctx.lineWidth=1.5;ctx.stroke();
+  // Limbs
+  const limbs=Math.max(2,Math.floor(2+str/35));
+  for(let i=0;i<limbs;i++){
+    const side=i<limbs/2?-1:1;
+    const idx=i<limbs/2?i:i-Math.ceil(limbs/2);
+    const total=Math.ceil(limbs/2);
+    const frac=(idx+.5)/total;
+    const ay=cy-sz*.2+frac*sz*.8;
+    const ax=cx+side*sz*.9;
+    const ex=ax+side*(12+str*.12)+Math.sin(anim*2+i)*4;
+    const ey=ay+sz*.3;
+    ctx.beginPath();ctx.moveTo(ax,ay);ctx.quadraticCurveTo((ax+ex)/2,ay+sz*.2,ex,ey);
+    ctx.strokeStyle=col;ctx.lineWidth=2.5+str/40;ctx.lineCap='round';ctx.stroke();
+  }
+  // Tentacles (parasite)
+  if(diet==='parazit'){
+    for(let t=0;t<6;t++){
+      const ta=(t/6)*Math.PI*2+anim*.4;
+      const len=sz*.6+Math.sin(anim*2.5+t)*sz*.2;
+      ctx.beginPath();ctx.moveTo(cx+Math.cos(ta)*sz,cy+Math.sin(ta)*sz);
+      ctx.lineTo(cx+Math.cos(ta)*(sz+len),cy+Math.sin(ta)*(sz+len));
+      ctx.strokeStyle='rgba(108,52,131,.7)';ctx.lineWidth=1.5;ctx.stroke();
+    }
+  }
+  // Eyes
+  const eOff=sz*.36;
+  const eSz=3.5+int_*.055;
+  for(let s of[-1,1]){
+    const ex=cx+s*eOff*.75,ey=cy-sz*.22;
+    ctx.beginPath();ctx.arc(ex,ey,eSz,0,Math.PI*2);ctx.fillStyle='white';ctx.fill();
+    ctx.beginPath();ctx.arc(ex+s*Math.sin(anim*.6)*1.5,ey,eSz*.55,0,Math.PI*2);ctx.fillStyle='#111';ctx.fill();
+    if(int_>65){ctx.beginPath();ctx.arc(ex,ey,eSz,0,Math.PI*2);ctx.strokeStyle=`rgba(255,215,0,${(int_-65)/60})`;ctx.lineWidth=1.5;ctx.stroke();}
+  }
+  // Teeth (carnivore)
+  if(diet==='karnivor'){
+    ctx.fillStyle='#fff';
+    for(let t=0;t<4;t++){const tx=cx-7+t*5,ty=cy+sz*.4;ctx.beginPath();ctx.moveTo(tx-2.5,ty);ctx.lineTo(tx,ty+7);ctx.lineTo(tx+2.5,ty);ctx.fill();}
+  }
+  // Vision ring
+  if(vis>65){
+    ctx.beginPath();ctx.arc(cx,cy,sz*1.5+Math.sin(anim)*.04,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(168,218,220,${(vis-65)/80*.5})`;ctx.lineWidth=.8;ctx.setLineDash([2,5]);ctx.stroke();ctx.setLineDash([]);
+  }
+}
+function lighten(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgb(${Math.min(255,r+a)},${Math.min(255,g+a)},${Math.min(255,b+a)})`}
+function darken(hex,a){const r=parseInt(hex.slice(1,3),16),g=parseInt(hex.slice(3,5),16),b=parseInt(hex.slice(5,7),16);return`rgb(${Math.max(0,r-a)},${Math.max(0,g-a)},${Math.max(0,b-a)})`}
+
+// ---- EVO TREE ----
+function addEvoNode(label,extinct){
+  G.evoNodes.push({label,extinct,season:G.seasonIdx,year:G.year});
+}
+
+function drawEvoTree(){
+  const cvs=document.getElementById('evo-tree-canvas');
+  if(!cvs)return;
+  const W=cvs.width,H=cvs.height;
+  const ctx=cvs.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  // grid
+  ctx.strokeStyle='rgba(86,227,159,.04)';ctx.lineWidth=1;
+  for(let y=0;y<H;y+=30){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  if(G.evoNodes.length===0){
+    ctx.font='10px Share Tech Mono';ctx.fillStyle='#2a4a34';ctx.textAlign='center';
+    ctx.fillText('Evo-strom se plní hrou…',W/2,H/2);return;
+  }
+  const total=G.evoNodes.length;
+  const xStep=Math.min(60,(W-30)/Math.max(1,total));
+  const rootX=15,rootY=H-20;
+  ctx.strokeStyle='rgba(46,125,82,.6)';ctx.lineWidth=1.5;
+  G.evoNodes.forEach((n,i)=>{
+    const x=rootX+i*xStep;
+    const y=rootY-20-i*(H-50)/Math.max(1,total)*1.1;
+    const py=i===0?rootY:rootY-20-(i-1)*(H-50)/Math.max(1,total)*1.1;
+    const px=rootX+(i-1)*xStep;
+    if(i>0){ctx.beginPath();ctx.moveTo(px<0?rootX:px,py);ctx.bezierCurveTo(px<0?rootX:px,(py+y)/2,x,(py+y)/2,x,y);ctx.stroke();}
+    const r=n.extinct?4:i===total-1?9:6;
+    if(!n.extinct){const gl=ctx.createRadialGradient(x,y,0,x,y,r*2.5);gl.addColorStop(0,'rgba(86,227,159,.2)');gl.addColorStop(1,'transparent');ctx.beginPath();ctx.arc(x,y,r*2.5,0,Math.PI*2);ctx.fillStyle=gl;ctx.fill();}
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=n.extinct?'#e63946':i===total-1?'#56e39f':'#2e7d52';ctx.fill();
+    ctx.strokeStyle=n.extinct?'#a02030':'rgba(86,227,159,.5)';ctx.lineWidth=1;ctx.stroke();
+    if(i===total-1||i===0){
+      ctx.font='8px Share Tech Mono';ctx.fillStyle='rgba(86,227,159,.7)';ctx.textAlign='center';
+      ctx.fillText(n.label.slice(0,14),x,y-r-4);
+    }
+  });
+  ctx.textAlign='left';
+}
+
+// ---- LEFT PANEL TRAITS ----
+function buildTraitsDisplay(){
+  const el=document.getElementById('traits-display');
+  const p=G.player;
+  el.innerHTML=TRAITS_DEF.map(t=>`
+    <div class="trait-row">
+      <span class="trait-lbl">${t.label}</span>
+      <input type="range" min="0" max="100" value="${p.traits[t.k]}" disabled style="opacity:.6">
+      <span class="trait-v">${p.traits[t.k]}</span>
+    </div>
+  `).join('');
+  document.getElementById('diet-display').textContent=DIETS_DEF.find(d=>d.k===p.diet)?.label||'—';
+  document.getElementById('species-display-name').textContent=p.name;
+}
+
+// ---- BIOME LEGEND ----
+function buildBiomeLegend(){
+  document.getElementById('biome-legend').innerHTML=BIOME_COLORS.map((c,i)=>`
+    <div class="biome-item"><div class="biome-dot" style="background:${c[0]}"></div>${BIOME_NAMES[i]}</div>
+  `).join('');
+}
+
+// ---- START SCREEN EDITOR ----
+let startTraits={size:40,speed:50,strength:40,intelligence:50,defense:40,vision:50};
+let startDiet='herbivor';
+let startSpecAnim=0;
+
+function buildStartEditor(){
+  const wrap=document.getElementById('editor-traits-wrap');
+  wrap.innerHTML=TRAITS_DEF.map(t=>`
+    <div class="editor-trait-row">
+      <span class="trait-lbl">${t.label}</span>
+      <input type="range" min="5" max="90" value="${startTraits[t.k]}" id="st-${t.k}" oninput="onStartTrait('${t.k}',this.value)">
+      <span class="trait-v" id="stv-${t.k}">${startTraits[t.k]}</span>
+    </div>
+  `).join('');
+  const drow=document.getElementById('editor-diet-row');
+  drow.innerHTML=DIETS_DEF.map(d=>`
+    <button class="d-btn ${startDiet===d.k?'active':''}" onclick="setStartDiet('${d.k}')">${d.label}</button>
+  `).join('');
+  updateStartPts();
+}
+function onStartTrait(k,v){
+  startTraits[k]=+v;
+  document.getElementById('stv-'+k).textContent=v;
+  updateStartPts();
+}
+function setStartDiet(d){
+  startDiet=d;
+  document.querySelectorAll('#editor-diet-row .d-btn').forEach(b=>b.classList.remove('active'));
+  event.target.classList.add('active');
+}
+function updateStartPts(){
+  const total=Object.values(startTraits).reduce((a,b)=>a+b,0);
+  const pct=Math.min(100,(total/600*100)).toFixed(0);
+  document.getElementById('editor-pts-fill').style.width=pct+'%';
+  document.getElementById('editor-pts-val').textContent=`${Math.round(total/6)}/100`;
+}
+
+let startSpecLoop=null;
+function runStartSpecLoop(){
+  if(startSpecLoop)return;
+  function loop(){
+    startSpecAnim+=.02;
+    const cvs=document.getElementById('editor-species-cvs');
+    if(!cvs){startSpecLoop=null;return;}
+    const ctx=cvs.getContext('2d');ctx.clearRect(0,0,200,200);
+    drawCreature(ctx,100,100,startTraits,startDiet,startSpecAnim,72);
+    const cvs2=document.getElementById('mut-species-cvs');
+    if(cvs2){const c2=cvs2.getContext('2d');c2.clearRect(0,0,180,180);drawCreature(c2,90,90,mutTraits||G.player.traits,mutDiet||G.player.diet,startSpecAnim,65);}
+    startSpecLoop=requestAnimationFrame(loop);
+  }
+  startSpecLoop=requestAnimationFrame(loop);
+}
+
+// ---- START GAME ----
+function startGame(){
+  const name=document.getElementById('species-name-input').value.trim()||'Primordius';
+  G.seed=Math.floor(Math.random()*0xFFFFFF);
+  G.player.name=name;
+  G.player.traits={...startTraits};
+  G.player.diet=startDiet;
+  G.world=generateWorld(G.seed);
+  // Find non-ocean start
+  let sx,sy;
+  do{sx=20+Math.floor(rng()*(TW-40));sy=20+Math.floor(rng()*(TH-40));}
+  while(G.world.tiles[sy*TW+sx]===TILE_OCEAN||G.world.tiles[sy*TW+sx]===TILE_MOUNTAIN);
+  G.player.x=sx;G.player.y=sy;
+  G.player.pop=20;G.player.gen=1;G.player.mutations=0;G.year=1;G.tick=0;G.seasonTick=0;G.seasonIdx=0;
+  G.started=true;G.paused=false;
+  spawnEntities();
+  resizeCanvases();
+  renderWorldTiles(0);
+  buildTraitsDisplay();
+  buildBiomeLegend();
+  addEvoNode(`${name} – Původ`,false);
+  drawEvoTree();
+  document.getElementById('hud-seed').textContent='SEED: '+G.seed.toString(16).toUpperCase();
+  document.getElementById('stat-season').textContent='Jaro';
+  document.getElementById('stat-year').textContent='1';
+  const badge=document.getElementById('season-badge');
+  badge.textContent='🌸 Jaro';badge.style.color='#4caf7d';badge.style.borderColor='#2e7d52';
+  addLog(`🌍 Druh "${name}" se zrodil v ekosystému.`,'important');
+  addLog('Přežij co nejdéle, mutuj a expanduj svůj druh.','good');
+  document.getElementById('screen-start').classList.add('hidden');
+  drawSpeciesCanvas();
+  lastTime=performance.now();
+  requestAnimationFrame(gameLoop);
+}
+
+function restartGame(){
+  G={started:false,seed:0,world:null,entities:[],
+    player:{name:'Primordius',traits:{size:40,speed:50,strength:40,intelligence:50,defense:40,vision:50},
+            diet:'herbivor',pop:20,gen:1,mutations:0,x:60,y:45,territory:0,fitness:0,history:[]},
+    tick:0,seasonTick:0,seasonIdx:0,year:1,speed:1,paused:false,log:[],evoNodes:[],disasters:0};
+  document.getElementById('game-log').innerHTML='';
+  document.getElementById('screen-dead').classList.add('hidden');
+  buildStartEditor();
+  document.getElementById('screen-start').classList.remove('hidden');
+  runStartSpecLoop();
+}
+
+// ---- MUTATION EDITOR ----
+let mutTraits=null,mutDiet=null;
+function openMutationEditor(){
+  if(!G.started)return;
+  mutTraits={...G.player.traits};
+  mutDiet=G.player.diet;
+  const sub=document.getElementById('mutation-sub');
+  sub.textContent=`Rok ${G.year}, ${SEASONS_DATA[G.seasonIdx].name} – přizpůsob svůj druh (100 bodů)`;
+  buildMutEditor();
+  document.getElementById('screen-editor').classList.remove('hidden');
+  runStartSpecLoop();
+}
+function buildMutEditor(){
+  const wrap=document.getElementById('mut-traits-wrap');
+  wrap.innerHTML=TRAITS_DEF.map(t=>`
+    <div class="editor-trait-row">
+      <span class="trait-lbl">${t.label}</span>
+      <input type="range" min="5" max="90" value="${mutTraits[t.k]}" id="mt-${t.k}" oninput="onMutTrait('${t.k}',this.value)">
+      <span class="trait-v" id="mtv-${t.k}">${mutTraits[t.k]}</span>
+    </div>
+  `).join('');
+  document.getElementById('mut-diet-row').innerHTML=DIETS_DEF.map(d=>`
+    <button class="d-btn ${mutDiet===d.k?'active':''}" onclick="setMutDiet('${d.k}',this)">${d.label}</button>
+  `).join('');
+  updateMutPts();
+}
+function onMutTrait(k,v){mutTraits[k]=+v;document.getElementById('mtv-'+k).textContent=v;updateMutPts();}
+function setMutDiet(d,btn){
+  mutDiet=d;
+  document.querySelectorAll('#mut-diet-row .d-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+}
+function updateMutPts(){
+  const total=Object.values(mutTraits).reduce((a,b)=>a+b,0);
+  const pct=Math.min(100,(total/600*100)).toFixed(0);
+  document.getElementById('mut-pts-fill').style.width=pct+'%';
+  document.getElementById('mut-pts-val').textContent=`${Math.round(total/6)}/100`;
+}
+function applyMutation(){
+  G.player.traits={...mutTraits};
+  G.player.diet=mutDiet;
+  G.player.mutations++;
+  G.player.gen++;
+  buildTraitsDisplay();
+  addLog(`⚡ Mutace #${G.player.mutations}: generace ${G.player.gen}`,'good');
+  addEvoNode(`${G.player.name} G${G.player.gen}`,false);
+  drawEvoTree();
+  document.getElementById('screen-editor').classList.add('hidden');
+  mutTraits=null;mutDiet=null;
+}
+
+// ---- DISASTERS ----
+const DISASTER_LIST=[
+  {name:'🌋 Sopka',msg:'Sopka eruptuje! Okolní biomy zničeny. -30% populace.',fn:(p)=>{p.pop=Math.max(2,Math.floor(p.pop*.7));showAlert('🌋 Sopka – velké ztráty!');addLog('🌋 Sopečná erupce! Populace -30%.','danger');}},
+  {name:'☄️ Meteor',msg:'Meteor dopadl! Masové vymírání.',fn:(p)=>{p.pop=Math.max(2,Math.floor(p.pop*.5));G.entities.forEach(e=>{if(Math.random()<.4)e.pop=Math.max(0,Math.floor(e.pop*.4));});showAlert('☄️ Meteor – masové vymírání!');addLog('☄️ Meteor dopadl. Polovina druhů ohrožena.','danger');}},
+  {name:'🔥 Požár',msg:'Lesní požár v tropickém sektoru.',fn:(p)=>{if(p.diet==='herbivor')p.pop=Math.max(2,Math.floor(p.pop*.75));showAlert('🔥 Lesní požár – herbivores ohroženi!');addLog('🔥 Lesní požár – zdroje potravy -40%.','danger');}},
+  {name:'🦠 Epidemie',msg:'Epidemie oslabuje populace.',fn:(p)=>{p.pop=Math.max(2,Math.floor(p.pop*(1-(.8-p.traits.defense/200))));showAlert('🦠 Epidemie – obrana klíčová!');addLog('🦠 Epidemie! Nízká obrana = velké ztráty.','danger');}},
+  {name:'🌊 Záplava',msg:'Záplava zaplavuje pobřeží.',fn:(p)=>{showAlert('🌊 Záplava – pobřeží pod vodou!');addLog('🌊 Záplava. Pobřežní druhy migrují.','danger');}},
+];
+function triggerDisaster(){
+  if(!G.started)return;
+  const d=DISASTER_LIST[Math.floor(Math.random()*DISASTER_LIST.length)];
+  d.fn(G.player);
+  G.disasters++;
+}
+function showAlert(msg){
+  const el=document.getElementById('disaster-alert');
+  el.textContent=msg;el.style.display='block';
+  clearTimeout(el._t);el._t=setTimeout(()=>{el.style.display='none';},3500);
+}
+
+// ---- SPEED CONTROLS ----
+function setSpeed(s){
+  if(s===0){G.paused=!G.paused;}
+  else{G.paused=false;G.speed=s;}
+  document.querySelectorAll('.sp-btn').forEach((b,i)=>{
+    b.classList.toggle('active',+b.textContent.replace('×','')===s||(s===0&&G.paused&&b.textContent==='⏸'));
+  });
+}
+
+// ---- SPECIES ANIM LOOP (left panel) ----
+function speciesLoop(){
+  if(G.started)drawSpeciesCanvas();
+  requestAnimationFrame(speciesLoop);
+}
+
+// ---- TOOLTIP ----
+document.getElementById('map-wrap').addEventListener('mousemove',e=>{
+  if(!G.started)return;
+  const wrap=document.getElementById('map-wrap');
+  const rect=wrap.getBoundingClientRect();
+  const mx=(e.clientX-rect.left)/rect.width*TW;
+  const my=(e.clientY-rect.top)/rect.height*TH;
+  const tx=Math.floor(mx),ty=Math.floor(my);
+  if(tx<0||tx>=TW||ty<0||ty>=TH)return;
+  const tile=G.world.tiles[ty*TW+tx];
+  const tt=document.getElementById('tooltip');
+  tt.style.display='block';
+  tt.style.left=(e.clientX+12)+'px';tt.style.top=(e.clientY+12)+'px';
+  const near=G.entities.filter(en=>en.alive&&Math.abs(en.x-mx)<5&&Math.abs(en.y-my)<5);
+  tt.innerHTML=`<b>${BIOME_NAMES[tile]}</b><br>Potrava: ${BIOME_FOOD[tile]}<br>Voda: ${BIOME_WATER[tile]}`+(near.length?`<br>📍 ${near[0].name} (${near[0].pop})`:'');
+});
+document.getElementById('map-wrap').addEventListener('mouseleave',()=>{document.getElementById('tooltip').style.display='none';});
+
+// ---- MAP CLICK: Move player ----
+document.getElementById('map-wrap').addEventListener('click',e=>{
+  if(!G.started)return;
+  const wrap=document.getElementById('map-wrap');
+  const rect=wrap.getBoundingClientRect();
+  const tx=(e.clientX-rect.left)/rect.width*TW;
+  const ty=(e.clientY-rect.top)/rect.height*TH;
+  const tile=G.world.tiles[Math.floor(ty)*TW+Math.floor(tx)];
+  if(tile===TILE_OCEAN){addLog('🌊 Nemůžete vstoupit do oceánu.');return;}
+  G.player.x=tx;G.player.y=ty;
+  addLog(`➡ Přesun na ${BIOME_NAMES[tile]}.`);
+});
+
+// ---- INIT ----
+window.addEventListener('resize',resizeCanvases);
+buildStartEditor();
+buildBiomeLegend();
+runStartSpecLoop();
+requestAnimationFrame(speciesLoop);
+</script>
+</body>
+</html>
