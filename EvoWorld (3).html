@@ -1,0 +1,1513 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>EvoWorld – Ekosystém</title>
+<link href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@400;700&family=Exo+2:ital,wght@0,200;0,400;0,600;0,700;1,300&family=Fira+Code:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --void:#030709;--bg:#050d0a;--panel:#081510;--panel2:#0c1e14;
+  --border:#152a1c;--border2:#1e3828;
+  --g0:#4fffb0;--g1:#1e9b5e;--g2:#0f5c38;--g3:#07321e;
+  --amber:#ffb347;--crimson:#ff4757;--ice:#74ebd5;--gold:#ffe066;
+  --violet:#a855f7;--sky:#38bdf8;
+  --text:#b8dfc4;--muted:#3d6b4f;--dim:#1a3224;--faint:#0e1f16;
+  --ff-h:'Cinzel Decorative',serif;--ff-b:'Exo 2',sans-serif;--ff-m:'Fira Code',monospace;
+  --glow0:rgba(79,255,176,.18);--glow1:rgba(79,255,176,.06);
+}
+html,body{width:100%;height:100%;overflow:hidden;background:var(--void);color:var(--text);font-family:var(--ff-b)}
+canvas{display:block}
+/* scrollbar */
+::-webkit-scrollbar{width:3px;height:3px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:2px}
+
+/* ── LAYOUT ── */
+#app{display:grid;grid-template-rows:52px 1fr;grid-template-columns:270px 1fr 290px;height:100vh}
+#topbar{grid-column:1/-1;display:flex;align-items:center;gap:1.2rem;padding:0 1.4rem;
+  background:linear-gradient(90deg,var(--panel) 0%,var(--bg) 50%,var(--panel) 100%);
+  border-bottom:1px solid var(--border2);position:relative;z-index:20}
+#topbar::after{content:'';position:absolute;bottom:0;left:0;right:0;height:1px;
+  background:linear-gradient(90deg,transparent,var(--g1),transparent);opacity:.5}
+#left{background:var(--panel);border-right:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden;position:relative}
+#mapzone{position:relative;overflow:hidden;background:var(--void)}
+#right{background:var(--panel);border-left:1px solid var(--border);
+  display:flex;flex-direction:column;overflow:hidden}
+
+/* ── TOPBAR ── */
+.logo{font-family:var(--ff-h);font-size:1.15rem;color:var(--g0);letter-spacing:.06em;
+  text-shadow:0 0 24px rgba(79,255,176,.6),0 0 60px rgba(79,255,176,.2);white-space:nowrap}
+.tsep{width:1px;height:20px;background:var(--border2);flex-shrink:0}
+.tstat{display:flex;flex-direction:column;align-items:center;min-width:52px}
+.tstat-v{font-family:var(--ff-m);font-size:.88rem;line-height:1;color:var(--gold)}
+.tstat-l{font-family:var(--ff-m);font-size:.48rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase;margin-top:2px}
+.sbadge{font-family:var(--ff-m);font-size:.62rem;letter-spacing:.14em;padding:.2rem .75rem;
+  border-radius:20px;border:1px solid;text-transform:uppercase;white-space:nowrap}
+.spd-btns{display:flex;gap:.25rem;margin-left:auto}
+.spd-b{font-family:var(--ff-m);font-size:.62rem;padding:.22rem .55rem;border-radius:4px;
+  border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s}
+.spd-b.on,.spd-b:hover{border-color:var(--g0);color:var(--g0);background:rgba(79,255,176,.07)}
+.tbtn{font-family:var(--ff-b);font-weight:600;font-size:.72rem;letter-spacing:.1em;text-transform:uppercase;
+  padding:.28rem .9rem;border-radius:5px;border:1px solid var(--g2);background:rgba(30,155,94,.18);
+  color:var(--g0);cursor:pointer;transition:all .2s;white-space:nowrap}
+.tbtn:hover{background:rgba(30,155,94,.35);box-shadow:0 0 12px rgba(79,255,176,.15)}
+.tbtn.red{border-color:rgba(255,71,87,.4);background:rgba(255,71,87,.1);color:var(--crimson)}
+.tbtn.red:hover{background:rgba(255,71,87,.25)}
+
+/* ── PANEL SECTIONS ── */
+.ps{padding:.65rem .85rem;border-bottom:1px solid var(--border)}
+.pt{font-family:var(--ff-b);font-weight:600;font-size:.65rem;letter-spacing:.18em;text-transform:uppercase;
+  color:var(--g1);margin-bottom:.45rem;display:flex;align-items:center;gap:.38rem}
+.pt::before{content:'';display:block;width:3px;height:3px;background:var(--g0);border-radius:50%;
+  box-shadow:0 0 4px var(--g0)}
+
+/* ── SPECIES PREVIEW ── */
+#spec-prev{display:flex;justify-content:center;align-items:center;padding:.9rem .7rem;
+  background:radial-gradient(ellipse 80% 70% at 50% 55%,rgba(30,155,94,.09) 0%,transparent 100%);
+  flex-shrink:0}
+
+/* ── STAT GRID ── */
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:.35rem}
+.sg-item{background:var(--faint);border:1px solid var(--border);border-radius:5px;
+  padding:.4rem .5rem;display:flex;flex-direction:column}
+.sg-v{font-family:var(--ff-m);font-size:.85rem;line-height:1.1}
+.sg-l{font-family:var(--ff-m);font-size:.46rem;letter-spacing:.12em;color:var(--muted);text-transform:uppercase;margin-top:2px}
+
+/* ── TRAIT BARS ── */
+.tr-list{display:flex;flex-direction:column;gap:.38rem}
+.tr-row{display:grid;grid-template-columns:72px 1fr 24px;align-items:center;gap:.4rem}
+.tr-lbl{font-family:var(--ff-m);font-size:.54rem;letter-spacing:.06em;color:var(--muted);text-transform:uppercase}
+.tr-bar{height:3px;background:var(--dim);border-radius:2px;overflow:hidden;position:relative}
+.tr-fill{height:100%;border-radius:2px;transition:width .4s ease}
+.tr-v{font-family:var(--ff-m);font-size:.6rem;color:var(--gold);text-align:right}
+
+/* ── MAP ── */
+#mc,#oc{position:absolute;inset:0;width:100%;height:100%}
+#oc{pointer-events:none}
+#hud{position:absolute;top:.75rem;left:.75rem;display:flex;flex-direction:column;gap:.35rem;pointer-events:none;z-index:5}
+.hchip{font-family:var(--ff-m);font-size:.58rem;letter-spacing:.08em;padding:.18rem .55rem;border-radius:4px;
+  background:rgba(3,7,9,.82);border:1px solid var(--border2);color:var(--g0);backdrop-filter:blur(6px)}
+#ev-notif{position:absolute;top:.75rem;right:.75rem;max-width:210px;display:none;z-index:5;
+  font-family:var(--ff-m);font-size:.6rem;letter-spacing:.05em;padding:.5rem .75rem;border-radius:6px;
+  backdrop-filter:blur(6px);animation:popIn .3s ease}
+@keyframes popIn{from{opacity:0;transform:scale(.9) translateY(-6px)}to{opacity:1;transform:scale(1) translateY(0)}}
+#progress-bar-wrap{position:absolute;bottom:0;left:0;right:0;height:3px;background:rgba(0,0,0,.4);z-index:5}
+#progress-bar{height:100%;background:linear-gradient(90deg,var(--g2),var(--g0));transition:width .6s ease}
+
+/* ── RIGHT PANEL ── */
+.log-scroll{flex:1;overflow-y:auto;padding:.45rem .8rem;display:flex;flex-direction:column;gap:.2rem}
+.le{font-family:var(--ff-m);font-size:.56rem;letter-spacing:.03em;color:var(--muted);line-height:1.5;
+  border-left:2px solid var(--dim);padding-left:.45rem;padding-top:.05rem;padding-bottom:.05rem}
+.le.imp{color:var(--g0);border-left-color:var(--g1)}
+.le.bad{color:var(--crimson);border-left-color:rgba(255,71,87,.6)}
+.le.good{color:var(--gold);border-left-color:rgba(255,224,102,.5)}
+.le.evt{color:var(--sky);border-left-color:rgba(56,189,248,.4)}
+
+/* ── BIOME LEGEND ── */
+.bl-grid{display:grid;grid-template-columns:1fr 1fr;gap:.25rem}
+.bl-item{display:flex;align-items:center;gap:.4rem;font-family:var(--ff-m);font-size:.54rem;color:var(--muted)}
+.bl-dot{width:7px;height:7px;border-radius:2px;flex-shrink:0}
+
+/* ── MODALS ── */
+.modal-bg{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+  background:rgba(3,7,9,.93);backdrop-filter:blur(10px)}
+.modal-bg.hide{display:none}
+.mbox{background:var(--panel2);border:1px solid var(--border2);border-radius:14px;padding:2rem 2.2rem;
+  max-width:540px;width:92%;max-height:90vh;overflow-y:auto;
+  box-shadow:0 0 60px rgba(79,255,176,.05),0 30px 80px rgba(0,0,0,.7)}
+.mbox::before{content:'';display:block;height:2px;background:linear-gradient(90deg,transparent,var(--g1),transparent);
+  margin:-2rem -2.2rem 1.5rem;border-radius:14px 14px 0 0}
+.mtitle{font-family:var(--ff-h);font-size:1.5rem;color:var(--g0);text-align:center;letter-spacing:.06em;
+  text-shadow:0 0 24px rgba(79,255,176,.4);margin-bottom:.25rem}
+.msub{font-family:var(--ff-m);font-size:.6rem;letter-spacing:.2em;text-transform:uppercase;
+  color:var(--muted);text-align:center;margin-bottom:1.8rem}
+.mlabel{font-family:var(--ff-b);font-weight:600;font-size:.65rem;letter-spacing:.15em;text-transform:uppercase;
+  color:var(--g1);margin-bottom:.6rem;display:block}
+.minput{width:100%;background:var(--bg);border:1px solid var(--border2);border-radius:6px;
+  padding:.55rem .85rem;font-family:var(--ff-m);font-size:.85rem;color:var(--g0);outline:none;
+  letter-spacing:.08em;transition:border-color .2s;margin-bottom:1.2rem}
+.minput:focus{border-color:var(--g1);box-shadow:0 0 0 2px rgba(30,155,94,.15)}
+
+/* sliders in modal */
+.m-tr-row{display:grid;grid-template-columns:90px 1fr 28px;align-items:center;gap:.45rem;margin-bottom:.35rem}
+input[type=range]{-webkit-appearance:none;width:100%;height:3px;background:var(--dim);border-radius:2px;outline:none;cursor:pointer}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:12px;height:12px;border-radius:50%;
+  background:var(--g0);cursor:pointer;box-shadow:0 0 8px rgba(79,255,176,.5),0 0 0 2px rgba(79,255,176,.15)}
+
+.diet-row{display:flex;gap:.35rem;flex-wrap:wrap;margin-bottom:1rem}
+.db{font-family:var(--ff-m);font-size:.56rem;letter-spacing:.06em;padding:.22rem .55rem;border-radius:4px;
+  border:1px solid var(--border2);background:transparent;color:var(--muted);cursor:pointer;
+  transition:all .15s;text-transform:uppercase}
+.db.on{border-color:var(--g0);color:var(--g0);background:rgba(79,255,176,.09)}
+.db:hover:not(.on){border-color:var(--g1);color:var(--g1)}
+
+.pts-row{display:flex;align-items:center;gap:.55rem;margin:.7rem 0}
+.pts-track{flex:1;height:5px;background:var(--dim);border-radius:3px;overflow:hidden}
+.pts-fill{height:100%;border-radius:3px;transition:width .25s}
+.pts-lbl{font-family:var(--ff-m);font-size:.58rem;color:var(--muted);white-space:nowrap}
+.pts-val{font-family:var(--ff-m);font-size:.62rem;color:var(--gold)}
+
+.bigbtn{width:100%;font-family:var(--ff-b);font-weight:700;font-size:.92rem;letter-spacing:.18em;
+  text-transform:uppercase;padding:.85rem;border-radius:8px;border:1px solid var(--g1);
+  background:linear-gradient(135deg,rgba(30,155,94,.28),rgba(79,255,176,.08));color:var(--g0);
+  cursor:pointer;transition:all .3s;margin-top:.5rem;position:relative;overflow:hidden}
+.bigbtn::after{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(79,255,176,.12),transparent);
+  opacity:0;transition:opacity .3s}
+.bigbtn:hover::after{opacity:1}
+.bigbtn:hover{transform:translateY(-1px);box-shadow:0 8px 30px rgba(79,255,176,.15)}
+.bigbtn.red{border-color:rgba(255,71,87,.5);background:rgba(255,71,87,.1);color:var(--crimson)}
+.bigbtn.red:hover{box-shadow:0 8px 30px rgba(255,71,87,.15)}
+
+/* dead screen */
+.dead-t{font-family:var(--ff-h);font-size:2rem;color:var(--crimson);text-align:center;
+  text-shadow:0 0 40px rgba(255,71,87,.4);margin-bottom:.4rem}
+.dead-grid{display:grid;grid-template-columns:1fr 1fr;gap:.7rem;margin:1.3rem 0}
+.dc{background:var(--faint);border:1px solid var(--border);border-radius:8px;padding:.7rem;text-align:center}
+.dcn{font-family:var(--ff-h);font-size:1.5rem;color:var(--gold)}
+.dcl{font-family:var(--ff-m);font-size:.5rem;color:var(--muted);letter-spacing:.12em;text-transform:uppercase}
+
+/* ── EVO TREE ── */
+#etree{display:block;width:100%}
+.eco-bars{display:flex;flex-direction:column;gap:.3rem;padding:.65rem .85rem}
+.eco-row{display:grid;grid-template-columns:64px 1fr 28px;align-items:center;gap:.4rem}
+.eco-lbl{font-family:var(--ff-m);font-size:.52rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em}
+.eco-track{height:4px;background:var(--dim);border-radius:2px;overflow:hidden}
+.eco-fill{height:100%;border-radius:2px;transition:width .5s ease}
+.eco-v{font-family:var(--ff-m);font-size:.58rem;text-align:right}
+
+/* tooltip */
+#tip{position:fixed;z-index:500;pointer-events:none;display:none;
+  background:rgba(3,7,9,.95);border:1px solid var(--border2);border-radius:6px;
+  padding:.4rem .7rem;font-family:var(--ff-m);font-size:.58rem;color:var(--g0);
+  max-width:170px;line-height:1.6;letter-spacing:.04em;backdrop-filter:blur(8px);
+  box-shadow:0 8px 30px rgba(0,0,0,.6)}
+
+/* season transition */
+#season-flash{position:fixed;inset:0;z-index:50;pointer-events:none;opacity:0;
+  transition:opacity .8s;display:flex;align-items:center;justify-content:center}
+.sf-text{font-family:var(--ff-h);font-size:3.5rem;color:white;
+  text-shadow:0 0 60px currentColor;letter-spacing:.1em}
+</style>
+</head>
+<body>
+<div id="tip"></div>
+<div id="season-flash"><div class="sf-text" id="sf-txt"></div></div>
+
+<!-- START SCREEN -->
+<div class="modal-bg" id="scr-start">
+<div class="mbox">
+  <div class="mtitle">EvoWorld</div>
+  <div class="msub">Vytvoř svůj druh a přežij</div>
+  <label class="mlabel">Název druhu</label>
+  <input class="minput" id="inp-name" placeholder="Primordius" maxlength="22" value="Primordius">
+  <label class="mlabel">Vizuální náhled</label>
+  <canvas id="cvs-start" width="200" height="180" style="display:block;margin:0 auto .9rem;border-radius:10px;background:radial-gradient(ellipse,rgba(30,155,94,.1),transparent)"></canvas>
+  <label class="mlabel">Vlastnosti <span style="color:var(--muted);font-weight:300">(celkem max 300 bodů)</span></label>
+  <div id="start-traits"></div>
+  <div class="pts-row">
+    <span class="pts-lbl">Využito</span>
+    <div class="pts-track"><div class="pts-fill" id="spt-fill" style="background:linear-gradient(90deg,var(--g2),var(--g0))"></div></div>
+    <span class="pts-val" id="spt-val">0/300</span>
+  </div>
+  <label class="mlabel">Strava</label>
+  <div class="diet-row" id="start-diet"></div>
+  <button class="bigbtn" onclick="startGame()">▶ Začít evoluci</button>
+</div>
+</div>
+
+<!-- DEAD SCREEN -->
+<div class="modal-bg hide" id="scr-dead">
+<div class="mbox" style="max-width:380px">
+  <div class="dead-t">VYMŘELI JSTE</div>
+  <div style="font-family:var(--ff-m);font-size:.62rem;color:var(--muted);text-align:center;letter-spacing:.1em;margin-bottom:.5rem" id="dead-reason"></div>
+  <div class="dead-grid" id="dead-stats"></div>
+  <button class="bigbtn red" onclick="restartGame()" style="margin-top:1rem">↺ Nová hra</button>
+</div>
+</div>
+
+<!-- MUTATION EDITOR -->
+<div class="modal-bg hide" id="scr-mut">
+<div class="mbox">
+  <div class="mtitle" style="font-size:1.2rem">Sezónní mutace</div>
+  <div class="msub" id="mut-sub">Přerozdělej body evoluce</div>
+  <canvas id="cvs-mut" width="170" height="150" style="display:block;margin:0 auto .8rem;border-radius:8px;background:radial-gradient(ellipse,rgba(30,155,94,.1),transparent)"></canvas>
+  <div id="mut-traits"></div>
+  <div class="pts-row">
+    <span class="pts-lbl">Body</span>
+    <div class="pts-track"><div class="pts-fill" id="mpt-fill" style="background:linear-gradient(90deg,var(--g2),var(--g0))"></div></div>
+    <span class="pts-val" id="mpt-val">0/300</span>
+  </div>
+  <div class="diet-row" id="mut-diet"></div>
+  <button class="bigbtn" onclick="applyMut()">✓ Potvrdit mutaci</button>
+</div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app">
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="logo">EvoWorld</div>
+  <div class="tsep"></div>
+  <div class="tstat"><span class="tstat-v" id="t-year">1</span><span class="tstat-l">Rok</span></div>
+  <div class="tstat"><span class="tstat-v" id="t-season">—</span><span class="tstat-l">Sezóna</span></div>
+  <div class="tstat"><span class="tstat-v" id="t-pop" style="color:var(--g0)">—</span><span class="tstat-l">Populace</span></div>
+  <div class="tstat"><span class="tstat-v" id="t-food" style="color:var(--amber)">—</span><span class="tstat-l">Zásoby</span></div>
+  <div class="tstat"><span class="tstat-v" id="t-cc" style="color:var(--ice)">—</span><span class="tstat-l">Kapacita</span></div>
+  <div class="tstat"><span class="tstat-v" id="t-mut" style="color:var(--violet)">0</span><span class="tstat-l">Mutací</span></div>
+  <div class="tsep"></div>
+  <div class="sbadge" id="sbadge">🌸 Jaro</div>
+  <div class="spd-btns">
+    <button class="spd-b" onclick="setSpd(0)">⏸</button>
+    <button class="spd-b on" onclick="setSpd(1)">1×</button>
+    <button class="spd-b" onclick="setSpd(2)">2×</button>
+    <button class="spd-b" onclick="setSpd(5)">5×</button>
+  </div>
+  <div class="tsep"></div>
+  <button class="tbtn" onclick="openMut()">⚡ Mutovat</button>
+  <button class="tbtn red" onclick="doDisaster()">☄ Katastrofa</button>
+</div>
+
+<!-- LEFT PANEL -->
+<div id="left">
+  <div id="spec-prev"><canvas id="cvs-main" width="230" height="190"></canvas></div>
+  <div class="ps">
+    <div class="pt">Tvůj druh</div>
+    <div style="font-family:var(--ff-h);font-size:.95rem;color:var(--g0);letter-spacing:.06em;margin-bottom:.5rem;text-shadow:0 0 12px rgba(79,255,176,.3)" id="spec-name">—</div>
+    <div class="stat-grid">
+      <div class="sg-item"><span class="sg-v" id="sg-pop" style="color:var(--g0)">—</span><span class="sg-l">Populace</span></div>
+      <div class="sg-item"><span class="sg-v" id="sg-cc" style="color:var(--ice)">—</span><span class="sg-l">Kapacita</span></div>
+      <div class="sg-item"><span class="sg-v" id="sg-food" style="color:var(--amber)">—</span><span class="sg-l">Zásoby</span></div>
+      <div class="sg-item"><span class="sg-v" id="sg-gen" style="color:var(--violet)">1</span><span class="sg-l">Generace</span></div>
+      <div class="sg-item"><span class="sg-v" id="sg-stress" style="color:var(--crimson)">—</span><span class="sg-l">Stres</span></div>
+      <div class="sg-item"><span class="sg-v" id="sg-fit" style="color:var(--gold)">—</span><span class="sg-l">Fitness</span></div>
+    </div>
+  </div>
+  <div class="ps" style="flex:1;overflow-y:auto">
+    <div class="pt">Vlastnosti</div>
+    <div class="tr-list" id="tr-display"></div>
+    <div style="margin-top:.7rem">
+      <div class="pt">Strava</div>
+      <span id="diet-disp" style="font-family:var(--ff-m);font-size:.68rem;color:var(--g0)">—</span>
+    </div>
+    <div style="margin-top:.7rem">
+      <div class="pt">Ekosystém</div>
+      <div class="eco-bars" style="padding:0">
+        <div class="eco-row"><span class="eco-lbl">Potrava</span><div class="eco-track"><div class="eco-fill" id="eco-food" style="background:var(--amber)"></div></div><span class="eco-v" id="eco-food-v" style="color:var(--amber)">—</span></div>
+        <div class="eco-row"><span class="eco-lbl">Predátoři</span><div class="eco-track"><div class="eco-fill" id="eco-pred" style="background:var(--crimson)"></div></div><span class="eco-v" id="eco-pred-v" style="color:var(--crimson)">—</span></div>
+        <div class="eco-row"><span class="eco-lbl">Komp.</span><div class="eco-track"><div class="eco-fill" id="eco-comp" style="background:var(--violet)"></div></div><span class="eco-v" id="eco-comp-v" style="color:var(--violet)">—</span></div>
+        <div class="eco-row"><span class="eco-lbl">Klima</span><div class="eco-track"><div class="eco-fill" id="eco-clim" style="background:var(--sky)"></div></div><span class="eco-v" id="eco-clim-v" style="color:var(--sky)">—</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="ps">
+    <div class="pt">Legenda</div>
+    <div class="bl-grid" id="biome-leg"></div>
+  </div>
+</div>
+
+<!-- MAP -->
+<div id="mapzone">
+  <canvas id="mc"></canvas>
+  <canvas id="oc"></canvas>
+  <div id="hud">
+    <div class="hchip" id="hud-seed">SEED —</div>
+    <div class="hchip" id="hud-biome">Biom —</div>
+    <div class="hchip" id="hud-food">Potrava —</div>
+    <div class="hchip" id="hud-threat">Ohrožení —</div>
+  </div>
+  <div id="ev-notif"></div>
+  <div id="progress-bar-wrap"><div id="progress-bar" style="width:0%"></div></div>
+</div>
+
+<!-- RIGHT PANEL -->
+<div id="right">
+  <div class="ps">
+    <div class="pt">Evoluční strom</div>
+    <canvas id="etree" height="210"></canvas>
+  </div>
+  <div class="ps" style="flex-shrink:0">
+    <div class="pt">Záznamy</div>
+  </div>
+  <div class="log-scroll" id="glog"></div>
+</div>
+
+</div><!-- #app -->
+
+<script>
+'use strict';
+// ═══════════════════════════════════════════════════════════
+//   EVOWORLD  —  Full game engine v2
+//   Herní systém: vysvětlení na konci souboru
+// ═══════════════════════════════════════════════════════════
+
+// ── Improved Perlin noise ──────────────────────────────────
+const Noise=(()=>{
+  const perm=new Uint8Array(512);
+  function seed(s){
+    let n=s>>>0;
+    for(let i=0;i<256;i++)perm[i]=i;
+    for(let i=255;i>0;i--){n=(n*1664525+1013904223)>>>0;const j=n%(i+1);[perm[i],perm[j]]=[perm[j],perm[i]]}
+    for(let i=0;i<256;i++)perm[256+i]=perm[i];
+  }
+  const G2=[[1,1],[-1,1],[1,-1],[-1,-1],[1,0],[-1,0],[0,1],[0,-1]];
+  const fade=t=>t*t*t*(t*(t*6-15)+10);
+  const lerp=(a,b,t)=>a+(b-a)*t;
+  function p2(x,y){
+    const X=Math.floor(x)&255,Y=Math.floor(y)&255;
+    const xf=x-Math.floor(x),yf=y-Math.floor(y);
+    const u=fade(xf),v=fade(yf);
+    const aa=perm[perm[X]+Y],ab=perm[perm[X]+Y+1],ba=perm[perm[X+1]+Y],bb=perm[perm[X+1]+Y+1];
+    const d=(g,dx,dy)=>G2[g&7][0]*dx+G2[g&7][1]*dy;
+    return lerp(lerp(d(aa,xf,yf),d(ba,xf-1,yf),u),lerp(d(ab,xf,yf-1),d(bb,xf-1,yf-1),u),v);
+  }
+  function fbm(x,y,oct=7,lac=2.1,per=.48){
+    let v=0,a=1,f=1,mx=0;
+    for(let i=0;i<oct;i++){v+=p2(x*f,y*f)*a;mx+=a;a*=per;f*=lac}
+    return v/mx;
+  }
+  return{seed,fbm,p2};
+})();
+
+// ── Seeded random ──────────────────────────────────────────
+function mulberry(a){return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+let rng=mulberry(1);
+
+// ═══════════════════════════════════════════════════════════
+//   WORLD CONSTANTS
+// ═══════════════════════════════════════════════════════════
+const TW=128,TH=96;   // tile grid size
+
+// Biome IDs
+const B={OCEAN:0,DEEP:1,SHORE:2,PLAIN:3,SAVANNA:4,FOREST:5,JUNGLE:6,DESERT:7,MOUNTAIN:8,SNOW:9,GLACIER:10};
+
+// Per-biome: [darkColor, lightColor, name, baseFood, baseWater, carryCapBonus]
+// carryCapBonus = jak moc zvyšuje tenhle biom carrying capacity pro herbivor
+const BIOMES=[
+  ['#040E1C','#061828','Hluboký oceán',  0, 0, 0],  // 0 OCEAN
+  ['#071E35','#0A2848','Oceán',          0, 0, 0],  // 1 DEEP
+  ['#C5B560','#D4C870','Pobřeží',        2, 4, 1],  // 2 SHORE
+  ['#4A7A38','#5E9448','Pláně',          4, 2, 3],  // 3 PLAIN
+  ['#8C7430','#A08838','Savana',         3, 1, 2],  // 4 SAVANNA
+  ['#185C28','#206E34','Les',            5, 3, 4],  // 5 FOREST
+  ['#106428','#187A32','Džungle',        7, 5, 5],  // 6 JUNGLE
+  ['#B88030','#CC9038','Poušť',          1, 0, 1],  // 7 DESERT
+  ['#6A6A70','#808088','Hory',           2, 3, 2],  // 8 MOUNTAIN
+  ['#A0C8D8','#B8DCE8','Sněžné hory',   1, 4, 1],  // 9 SNOW
+  ['#C0E0F0','#D4F0FC','Ledovec',        0, 2, 0],  // 10 GLACIER
+];
+
+// Season definitions
+// foodMul, reprodMul, deathMod, winterStress, name, icon, color, borderColor
+const SEASONS=[
+  {name:'Jaro',    icon:'🌸',col:'#4fffb0',bc:'#1e9b5e',foodMul:1.2,reprodMul:1.4,deathMod:.9,wStress:0},
+  {name:'Léto',    icon:'☀️',col:'#ffb347',bc:'#c07a20',foodMul:1.0,reprodMul:1.0,deathMod:1.0,wStress:0},
+  {name:'Podzim',  icon:'🍂',col:'#ff6b47',bc:'#aa3010',foodMul:.75,reprodMul:.6, deathMod:1.1,wStress:.1},
+  {name:'Zima',    icon:'❄️',col:'#74ebd5',bc:'#2a8090',foodMul:.3, reprodMul:.2, deathMod:1.5,wStress:.4},
+];
+
+// ═══════════════════════════════════════════════════════════
+//   GAME STATE
+// ═══════════════════════════════════════════════════════════
+const DEF_TRAITS={size:40,speed:40,strength:30,intelligence:30,defense:30,reproRate:30,adaptability:30};
+// Total start = 250 (lower than max 300 – room to grow)
+
+let G={
+  running:false, paused:false, speed:1,
+  seed:0, world:null,
+  tick:0, seasonTick:0, sIdx:0, year:1,
+  // Player species state
+  p:{
+    name:'Primordius',
+    tr:{...DEF_TRAITS},   // current traits
+    diet:'herbivor',
+    // Population model
+    pop:10,              // current population (float internally)
+    food:50,             // food reserves (units)
+    gen:1, mutations:0,
+    x:64,y:48,           // position on tile map (float)
+    vx:0,vy:0,           // velocity for smooth movement
+    // Ecological pressures (0–1 scale, updated each tick)
+    eco:{food:0,pred:0,comp:0,clim:0},
+    // Stress accumulates when conditions are bad; too much = die
+    stress:0,
+    history:[],          // [{year,season,pop}] for evo tree
+  },
+  // AI species
+  species:[],
+  // Game log
+  log:[],
+  // Evolution tree nodes
+  evoNodes:[],
+  // Tile food map (regenerates over time)
+  tileFood:null,
+  // Climate drift (slow global change)
+  climate:0,   // 0=normal, positive=warming, negative=cooling
+};
+
+// ═══════════════════════════════════════════════════════════
+//   WORLD GENERATION
+// ═══════════════════════════════════════════════════════════
+function genWorld(seed){
+  Noise.seed(seed); rng=mulberry(seed);
+  const tiles=new Uint8Array(TW*TH);
+  const hmap=new Float32Array(TW*TH);
+  const mmap=new Float32Array(TW*TH);
+  const tmap=new Float32Array(TW*TH); // temperature
+
+  for(let y=0;y<TH;y++) for(let x=0;x<TW;x++){
+    const nx=x/TW*6-3, ny=y/TH*6-3;
+    // Height with island mask
+    let h=(Noise.fbm(nx,ny,7,.48,2.1)+1)*.5;
+    const cx=x/TW*2-1, cy=y/TH*2-1;
+    const d=Math.sqrt(cx*cx+cy*cy);
+    h=Math.max(0,Math.min(1,h-Math.max(0,d-.5)*1.4));
+    // moisture
+    let m=(Noise.fbm(nx+40,ny+80,5,.5,2)+1)*.5;
+    // temperature: cold at poles, warm equator
+    const lat=Math.abs(cy);
+    let t=1-lat*.9+(Noise.p2(nx*.5,ny*.5))*.15;
+    t=Math.max(0,Math.min(1,t));
+
+    hmap[y*TW+x]=h; mmap[y*TW+x]=m; tmap[y*TW+x]=t;
+
+    let b;
+    if(h<.18)b=B.OCEAN;
+    else if(h<.24)b=B.DEEP;
+    else if(h<.3)b=B.SHORE;
+    else if(h>.78){b=t<.3?B.GLACIER:B.SNOW;}
+    else if(h>.62){b=t<.35?B.SNOW:B.MOUNTAIN;}
+    else{
+      if(t<.3){b=B.SNOW;}
+      else if(m>.65&&t>.5)b=B.JUNGLE;
+      else if(m>.42&&t>.4)b=B.FOREST;
+      else if(m<.28&&t>.55)b=B.DESERT;
+      else if(m<.4)b=B.SAVANNA;
+      else b=B.PLAIN;
+    }
+    tiles[y*TW+x]=b;
+  }
+  // Init tile food map: land tiles start at 80% capacity
+  const tileFood=new Float32Array(TW*TH);
+  for(let i=0;i<TW*TH;i++){
+    const b=tiles[i];
+    tileFood[i]=BIOMES[b][3]*0.8; // [3] = baseFood
+  }
+  return{tiles,hmap,mmap,tmap,tileFood};
+}
+
+// ═══════════════════════════════════════════════════════════
+//   MAP RENDERING
+// ═══════════════════════════════════════════════════════════
+let cachedMapImg=null;
+function renderTiles(){
+  const cvs=document.getElementById('mc');
+  const W=cvs.width,H=cvs.height;
+  const ctx=cvs.getContext('2d');
+  const id=ctx.createImageData(W,H);
+  const d=id.data;
+  const si=G.sIdx;
+  const snowSeason=si===3;
+  function hexRgb(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]}
+
+  for(let py=0;py<H;py++) for(let px=0;px<W;px++){
+    const tx=Math.floor(px/W*TW), ty=Math.floor(py/H*TH);
+    let b=G.world.tiles[ty*TW+tx];
+    // winter: plains/savanna get snow tint
+    if(snowSeason&&(b===B.PLAIN||b===B.SAVANNA||b===B.FOREST))b=B.SNOW;
+    const shade=(tx+ty)%2===0?0:1;
+    const col=BIOMES[b][shade];
+    const rgb=hexRgb(col);
+    // Subtle elevation shading
+    const h=G.world.hmap[ty*TW+tx];
+    const shade2=.85+h*.3;
+    const i=(py*W+px)*4;
+    d[i]=Math.min(255,rgb[0]*shade2)|0;
+    d[i+1]=Math.min(255,rgb[1]*shade2)|0;
+    d[i+2]=Math.min(255,rgb[2]*shade2)|0;
+    d[i+3]=255;
+  }
+  ctx.putImageData(id,0,0);
+  // Rivers
+  drawRivers(ctx,W,H);
+  cachedMapImg=true;
+}
+function drawRivers(ctx,W,H){
+  const r2=mulberry(G.seed+99);
+  for(let r=0;r<5;r++){
+    let rx=r2()*TW*0.8+TW*0.1, ry=0;
+    ctx.beginPath();ctx.moveTo(rx/TW*W,0);
+    ctx.strokeStyle='rgba(56,189,248,.22)';ctx.lineWidth=1.2;
+    for(let s=0;s<TH;s++){
+      rx+=(r2()-.5)*2.2;rx=Math.max(1,Math.min(TW-1,rx));
+      const tx=Math.floor(rx),ty=s;
+      if(G.world.tiles[ty*TW+tx]===B.OCEAN||G.world.tiles[ty*TW+tx]===B.DEEP){break;}
+      ctx.lineTo(rx/TW*W,(s+1)/TH*H);
+    }
+    ctx.stroke();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//   OVERLAY RENDERING
+// ═══════════════════════════════════════════════════════════
+let oa=0; // overlay animation time
+function renderOverlay(){
+  const cvs=document.getElementById('oc');
+  const W=cvs.width,H=cvs.height;
+  const ctx=cvs.getContext('2d');
+  ctx.clearRect(0,0,W,H);
+  if(!G.running)return;
+  const tw=W/TW,th=H/TH;
+  oa+=.016;
+
+  // ── AI species ──
+  G.species.forEach(sp=>{
+    if(!sp.alive)return;
+    const sx=sp.x*tw,sy=sp.y*th;
+    const r=2.5+sp.pop*.04;
+    // subtle pulse
+    const pulse=1+Math.sin(oa*1.5+sp.id)*.06;
+    // glow
+    const grd=ctx.createRadialGradient(sx,sy,0,sx,sy,r*2.8*pulse);
+    grd.addColorStop(0,`hsla(${sp.hue},50%,45%,.18)`);
+    grd.addColorStop(1,`hsla(${sp.hue},50%,45%,0)`);
+    ctx.beginPath();ctx.arc(sx,sy,r*2.8*pulse,0,Math.PI*2);
+    ctx.fillStyle=grd;ctx.fill();
+    // dot
+    ctx.beginPath();ctx.arc(sx,sy,r*pulse,0,Math.PI*2);
+    ctx.fillStyle=`hsla(${sp.hue},65%,52%,.75)`;ctx.fill();
+    ctx.strokeStyle=`hsla(${sp.hue},70%,70%,.5)`;ctx.lineWidth=.8;ctx.stroke();
+    // pop indicator (radius ring)
+    if(sp.pop>3){
+      ctx.beginPath();ctx.arc(sx,sy,r+sp.pop*.06,0,Math.PI*2);
+      ctx.strokeStyle=`hsla(${sp.hue},50%,55%,.1)`;ctx.lineWidth=1;ctx.stroke();
+    }
+  });
+
+  // ── Player territory ──
+  const p=G.p;
+  const px=p.x*tw, py=p.y*th;
+  const trad=Math.min(W*.35, (20+p.pop*.18+p.tr.vision*.35)*(tw*TW/800));
+  // territory gradient
+  const tg=ctx.createRadialGradient(px,py,trad*.25,px,py,trad);
+  tg.addColorStop(0,'rgba(79,255,176,.05)');
+  tg.addColorStop(.6,'rgba(79,255,176,.025)');
+  tg.addColorStop(1,'rgba(79,255,176,0)');
+  ctx.beginPath();ctx.arc(px,py,trad,0,Math.PI*2);
+  ctx.fillStyle=tg;ctx.fill();
+  // territory border (dashed)
+  ctx.beginPath();ctx.arc(px,py,trad,0,Math.PI*2);
+  ctx.strokeStyle='rgba(79,255,176,.12)';ctx.lineWidth=1;
+  ctx.setLineDash([4,8]);ctx.stroke();ctx.setLineDash([]);
+
+  // ── Player dot ──
+  const pr=Math.min(16,4+p.pop*.045);
+  const beat=Math.sin(oa*2.2)*.06;
+  // outer glow
+  const pg=ctx.createRadialGradient(px,py,0,px,py,pr*3.5);
+  pg.addColorStop(0,'rgba(79,255,176,.2)');
+  pg.addColorStop(.4,'rgba(79,255,176,.08)');
+  pg.addColorStop(1,'rgba(79,255,176,0)');
+  ctx.beginPath();ctx.arc(px,py,pr*3.5,0,Math.PI*2);
+  ctx.fillStyle=pg;ctx.fill();
+  // main dot
+  const pd=ctx.createRadialGradient(px-pr*.3,py-pr*.3,pr*.1,px,py,pr*(1+beat));
+  pd.addColorStop(0,'#b0fff0');pd.addColorStop(.5,'#4fffb0');pd.addColorStop(1,'#1e9b5e');
+  ctx.beginPath();ctx.arc(px,py,pr*(1+beat),0,Math.PI*2);
+  ctx.fillStyle=pd;ctx.fill();
+  ctx.strokeStyle='rgba(79,255,176,.9)';ctx.lineWidth=1.5;ctx.stroke();
+
+  // pop label
+  ctx.font=`600 ${Math.min(11,8+p.pop*.01)}px 'Fira Code'`;
+  ctx.fillStyle='rgba(79,255,176,.95)';ctx.textAlign='center';
+  ctx.fillText(Math.round(p.pop),px,py-pr-4);
+  ctx.textAlign='left';
+
+  // ── Food heatmap overlay (subtle) ──
+  // draw sample points of tileFood
+  if(G.world&&G.world.tileFood){
+    ctx.save();ctx.globalAlpha=.07;
+    for(let y=0;y<TH;y+=3) for(let x=0;x<TW;x+=3){
+      const f=G.world.tileFood[y*TW+x];
+      const maxF=BIOMES[G.world.tiles[y*TW+x]][3]*1.5||1;
+      if(f>.5){
+        const sx2=x*tw,sy2=y*th;
+        ctx.fillStyle=`rgba(79,255,${100+f*30},.${Math.floor(f/maxF*4)+1})`;
+        ctx.fillRect(sx2,sy2,tw*3+1,th*3+1);
+      }
+    }
+    ctx.restore();
+  }
+}
+
+// ═══════════════════════════════════════════════════════════
+//   CARRYING CAPACITY MODEL
+//   CC závisí na: biom, dieta, inteligence, velikost
+// ═══════════════════════════════════════════════════════════
+function calcCC(p){
+  const tile=getTile(p.x,p.y);
+  const b=BIOMES[tile];
+  const bioCC=b[5]; // carryCapBonus per biome
+  // diet modifier
+  const dietMods={herbivor:1.0,omnivor:.8,karnivor:.5,parazit:.6};
+  const dm=dietMods[p.diet]||1;
+  // intelligence improves foraging efficiency → higher CC
+  const intBonus=1+p.tr.intelligence/200;
+  // large species need more food → lower CC
+  const sizeP=1-(p.tr.size/200);
+  // territory radius (how many tiles can you exploit)
+  const radius=3+p.tr.vision/25;
+  // count exploitable tiles around player
+  let areaCC=0;
+  const cx=Math.floor(p.x),cy=Math.floor(p.y);
+  let tileCount=0;
+  for(let dy=-radius;dy<=radius;dy++) for(let dx=-radius;dx<=radius;dx++){
+    if(dx*dx+dy*dy>radius*radius)continue;
+    const tx=cx+Math.round(dx),ty=cy+Math.round(dy);
+    if(tx<0||tx>=TW||ty<0||ty>=TH)continue;
+    const t=G.world.tiles[ty*TW+tx];
+    if(t===B.OCEAN||t===B.DEEP)continue;
+    areaCC+=BIOMES[t][5];tileCount++;
+  }
+  const areaMean=tileCount>0?areaCC/tileCount:0;
+  const cc=Math.max(2,(areaMean*8+bioCC*4)*dm*intBonus*sizeP);
+  return Math.round(cc);
+}
+
+// ═══════════════════════════════════════════════════════════
+//   FOOD SYSTEM
+//   Jídlo v dlaždici: regeneruje se každý tick, hráč ho konzumuje
+// ═══════════════════════════════════════════════════════════
+function harvestFood(p){
+  const si=G.sIdx;
+  const sData=SEASONS[si];
+  const tile=getTile(p.x,p.y);
+  const bFood=BIOMES[tile][3]; // base food of current biome
+  if(bFood===0)return 0;
+
+  // foraging efficiency = intelligence + diet bonus
+  const intEff=.3+p.tr.intelligence/140; // .3 → 1.01
+  const dietBonus={herbivor:tile===B.FOREST||tile===B.JUNGLE||tile===B.PLAIN||tile===B.SAVANNA?1.3:.6,
+                   karnivor:nearbyPrey(p)>0?1.5:.3,
+                   omnivor:0.9,
+                   parazit:nearbyHosts(p)>0?1.4:.4}[p.diet]||1;
+  const speedBonus=1+p.tr.speed/200; // fast = covers more ground = more food
+  const seas=sData.foodMul;
+  // Tile food depletion
+  const tIdx=Math.floor(p.y)*TW+Math.floor(p.x);
+  const available=G.world.tileFood[tIdx];
+  const demand=intEff*dietBonus*speedBonus*seas*p.pop*.08;
+  const harvested=Math.min(available*.6, demand); // can't take more than 60% at once
+  G.world.tileFood[tIdx]=Math.max(0,available-harvested);
+  return harvested;
+}
+
+function regenerateTileFood(){
+  const si=G.sIdx;
+  const mult=SEASONS[si].foodMul;
+  for(let i=0;i<TW*TH;i++){
+    const b=G.world.tiles[i];
+    const maxFood=BIOMES[b][3];
+    if(maxFood===0)continue;
+    // Slow regeneration
+    const regen=maxFood*.015*mult;
+    G.world.tileFood[i]=Math.min(maxFood,G.world.tileFood[i]+regen);
+  }
+}
+
+function nearbyPrey(p){
+  return G.species.filter(s=>s.alive&&s.diet!=='karnivor'&&dist2(p,s)<18).length;
+}
+function nearbyHosts(p){
+  return G.species.filter(s=>s.alive&&dist2(p,s)<12).length;
+}
+function nearbyPredators(p){
+  return G.species.filter(s=>s.alive&&s.diet==='karnivor'&&dist2(p,s)<20).length;
+}
+
+// ═══════════════════════════════════════════════════════════
+//   POPULATION DYNAMICS  (logistic growth with pressures)
+//   dN/dt = r·N·(1 - N/K) - deaths - predation - competition
+// ═══════════════════════════════════════════════════════════
+function updatePopulation(){
+  const p=G.p;
+  const sData=SEASONS[G.sIdx];
+  const cc=calcCC(p);
+
+  // ── Food pressure ──
+  // food / consumption ratio
+  const consumption=p.pop*(.02+p.tr.size/800);
+  const foodPressure=Math.max(0,1-p.food/(consumption*8)); // 0=fine, 1=starving
+  p.eco.food=foodPressure;
+
+  // ── Predation pressure ──
+  const predCount=nearbyPredators(p);
+  const defEff=p.tr.defense/100; // 0→1
+  const speedEff=p.tr.speed/100;
+  const predPressure=Math.min(1,predCount*(.15-defEff*.1-speedEff*.05));
+  p.eco.pred=Math.max(0,predPressure);
+
+  // ── Competition pressure ──
+  const competitors=G.species.filter(s=>s.alive&&s.diet===p.diet&&dist2(p,s)<15).length;
+  const compPressure=Math.min(.6,competitors*.12);
+  p.eco.comp=compPressure;
+
+  // ── Climate / seasonal stress ──
+  const climPressure=sData.wStress+Math.abs(G.climate)*.15
+    +(G.climate>.3&&p.tr.adaptability<40?.15:0)
+    +(G.climate<-.3&&p.tr.adaptability<40?.1:0);
+  p.eco.clim=Math.min(1,climPressure);
+
+  // ── Birth rate ──
+  // Logistic: grows fast when N<<K, slows near K
+  const logisticFactor=Math.max(0,1-p.pop/cc);
+  const r=(.015+p.tr.reproRate/1200)*sData.reprodMul; // base growth rate
+  const births=p.pop*r*logisticFactor;
+
+  // ── Death rate ──
+  const baseD=.008*sData.deathMod;
+  const foodD=foodPressure*.04;           // starving kills
+  const predD=predPressure*.06;           // predators kill
+  const compD=compPressure*.012;          // competition stress
+  const climD=climPressure*.025;          // climate stress
+  const crowdD=Math.max(0,(p.pop/cc-1))*.05; // overcrowding above CC
+  const deaths=p.pop*(baseD+foodD+predD+compD+climD+crowdD);
+
+  // ── Stress accumulation ──
+  const totalPressure=foodPressure*.4+predPressure*.3+compPressure*.15+climPressure*.15;
+  if(totalPressure>.5){
+    p.stress=Math.min(1,p.stress+(totalPressure-.5)*.01);
+  } else {
+    p.stress=Math.max(0,p.stress-(.5-totalPressure)*.008);
+  }
+
+  // ── Apply delta ──
+  const delta=births-deaths;
+  p.pop=Math.max(0,p.pop+delta);
+
+  // Update food reserves
+  const harvest=harvestFood(p);
+  p.food=Math.max(0,p.food+harvest-consumption);
+  p.food=Math.min(p.food,200); // cap reserves
+
+  return{cc,births,deaths,delta};
+}
+
+// ═══════════════════════════════════════════════════════════
+//   AI SPECIES
+// ═══════════════════════════════════════════════════════════
+function spawnSpecies(){
+  G.species=[];
+  const names=['Ferrox','Velidon','Crysax','Umbris','Thalor','Nexum','Voran','Sylph','Drakken','Morph'];
+  const diets=['herbivor','herbivor','herbivor','karnivor','karnivor','omnivor','omnivor','parazit','herbivor','karnivor'];
+  for(let i=0;i<10;i++){
+    let ex,ey,tile;
+    do{ex=8+Math.floor(rng()*(TW-16));ey=8+Math.floor(rng()*(TH-16));tile=G.world.tiles[ey*TW+ex];}
+    while(tile<=B.DEEP||tile>=B.SNOW);
+    G.species.push({id:i,name:names[i],x:ex,y:ey,pop:3+Math.floor(rng()*8),
+      hue:Math.floor(rng()*360),diet:diets[i],alive:true,
+      tr:{size:20+rng()*60,speed:20+rng()*60,defense:20+rng()*60,intelligence:20+rng()*60,reproRate:20+rng()*60,adaptability:20+rng()*60}
+    });
+  }
+}
+
+function updateAI(){
+  G.species.forEach(sp=>{
+    if(!sp.alive)return;
+    const sD=SEASONS[G.sIdx];
+    // Simple pop dynamics for AI
+    const tile=G.world.tiles[Math.floor(sp.y)*TW+Math.floor(sp.x)];
+    const bF=BIOMES[tile][3];
+    const grows=bF>0;
+    const r=.01*sD.reprodMul;
+    const d=.006*sD.deathMod+(grows?0:.02);
+    sp.pop=Math.max(0,sp.pop+sp.pop*(r-d)+(rng()-.5)*.3);
+    if(sp.pop>80)sp.pop=80;
+    // drift
+    sp.x=Math.max(2,Math.min(TW-2,sp.x+(rng()-.5)*1.2));
+    sp.y=Math.max(2,Math.min(TH-2,sp.y+(rng()-.5)*1.0));
+    if(sp.pop<.5){sp.alive=false;addLog(`💀 ${sp.name} vymřel.`,'bad');}
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//   PLAYER MOVEMENT
+// ═══════════════════════════════════════════════════════════
+function movePlayer(){
+  const p=G.p;
+  // Drift toward higher food areas (intelligence-guided foraging)
+  const intFactor=p.tr.intelligence/100;
+  let bestDx=0,bestDy=0,bestFood=-1;
+  const scan=Math.floor(2+p.tr.vision/30);
+  for(let dy=-scan;dy<=scan;dy+=1) for(let dx=-scan;dx<=scan;dx+=1){
+    if(dx===0&&dy===0)continue;
+    const tx=Math.floor(p.x+dx),ty=Math.floor(p.y+dy);
+    if(tx<1||tx>=TW-1||ty<1||ty>=TH-1)continue;
+    const t=G.world.tiles[ty*TW+tx];
+    if(t<=B.DEEP)continue;
+    const f=G.world.tileFood[ty*TW+tx];
+    if(f>bestFood){bestFood=f;bestDx=dx;bestDy=dy;}
+  }
+  const speed=(.15+p.tr.speed/400)*G.speed;
+  const driftX=(bestDx!==0?Math.sign(bestDx):0)*intFactor*speed;
+  const driftY=(bestDy!==0?Math.sign(bestDy):0)*intFactor*speed;
+  // small random wander
+  const wx=(rng()-.5)*.3;
+  const wy=(rng()-.5)*.3;
+  p.vx=p.vx*.7+(driftX+wx)*.3;
+  p.vy=p.vy*.7+(driftY+wy)*.3;
+  p.x=Math.max(2,Math.min(TW-2,p.x+p.vx));
+  p.y=Math.max(2,Math.min(TH-2,p.y+p.vy));
+  // don't go into ocean
+  const t=getTile(p.x,p.y);
+  if(t<=B.DEEP){p.vx*=-.8;p.vy*=-.8;p.x=Math.max(2,Math.min(TW-2,p.x+p.vx*3));p.y=Math.max(2,Math.min(TH-2,p.y+p.vy*3));}
+}
+
+// ═══════════════════════════════════════════════════════════
+//   SEASON ADVANCE
+// ═══════════════════════════════════════════════════════════
+const SEASON_LEN=80; // ticks per season (longer = slower game)
+function advanceSeason(){
+  G.sIdx=(G.sIdx+1)%4;
+  if(G.sIdx===0){G.year++;recordHistory();}
+  const s=SEASONS[G.sIdx];
+  // redraw tiles
+  renderTiles();
+  // update badge
+  const b=document.getElementById('sbadge');
+  b.textContent=`${s.icon} ${s.name}`;b.style.color=s.col;b.style.borderColor=s.bc;
+  document.getElementById('t-season').textContent=s.name;
+  document.getElementById('t-year').textContent=G.year;
+  // Season flash
+  showSeasonFlash(s.icon+' '+s.name,s.col);
+  // log
+  const msgs=['🌸 Jaro – rozkvět, populace roste','☀️ Léto – vrchol sezóny, kompetice silná','🍂 Podzim – potrava ubývá, připrav se','❄️ Zima – přežij za každou cenu'];
+  addLog(msgs[G.sIdx],'imp');
+  // climate drift (small random change per year)
+  if(G.sIdx===0){
+    G.climate+=((rng()-.48)*.06);
+    G.climate=Math.max(-.6,Math.min(.6,G.climate));
+    if(Math.abs(G.climate)>.3)addLog(`🌡️ Klimatická změna: ${G.climate>0?'oteplování':'ochlazování'} (${G.climate.toFixed(2)})`,'evt');
+  }
+  // Winter survival check
+  if(G.sIdx===3){
+    addLog('❄️ Zima: zásoby a obrana jsou klíčové.','evt');
+    if(G.p.tr.adaptability<25)addLog('⚠️ Nízká adaptabilita – zimní stres zvýšen!','bad');
+  }
+  // Spring: mutation point available
+  if(G.sIdx===0&&G.year>1){
+    addLog('⚡ Jaro: mutační bod k dispozici. Klikni Mutovat!','good');
+    // Shake button
+    const b=document.querySelector('.tbtn:not(.red)');
+    if(b){b.style.animation='none';setTimeout(()=>{b.style.boxShadow='0 0 18px rgba(79,255,176,.5)';setTimeout(()=>b.style.boxShadow='',2000)},100);}
+  }
+}
+
+function recordHistory(){
+  G.p.history.push({year:G.year,pop:Math.round(G.p.pop)});
+  addEvoNode(`R${G.year}: ${G.p.name}`,false);
+  drawEvoTree();
+}
+
+// ═══════════════════════════════════════════════════════════
+//   RANDOM EVENTS
+// ═══════════════════════════════════════════════════════════
+const EVENTS=[
+  {w:8, fn(p){p.food+=20;addLog('🌧️ Deštivé období – zásoby +20','good');}},
+  {w:6, fn(p){p.pop=Math.max(1,p.pop*.88);addLog('🌡️ Vlna veder – populace -12%','bad');}},
+  {w:5, fn(p){addLog('🌱 Nový potravní zdroj objeven v okolí.','good');
+    const tx=Math.floor(p.x),ty=Math.floor(p.y);
+    for(let i=-3;i<=3;i++)for(let j=-3;j<=3;j++){const x=tx+i,y=ty+j;if(x>=0&&x<TW&&y>=0&&y<TH)G.world.tileFood[y*TW+x]=Math.min(BIOMES[G.world.tiles[y*TW+x]][3]*1.5,G.world.tileFood[y*TW+x]*1.5+2);}}},
+  {w:4, fn(p){p.pop=Math.max(1,p.pop*.8);addLog('🦠 Lokální nákaza – ztráta 20% populace.','bad');}},
+  {w:3, fn(p){p.food=Math.min(200,p.food+40);addLog('☀️ Ideální podmínky – zásoby +40','good');}},
+  {w:4, fn(p){addLog('🐺 Predátoři se přibližují!','bad');p.eco.pred=Math.min(1,p.eco.pred+.3);}},
+  {w:2, fn(p){const gain=Math.round(p.pop*.15);p.pop+=gain;addLog(`🌸 Rozmnožovací exploze +${gain} jedinců`,'good');}},
+];
+function maybeEvent(){
+  if(rng()>.06)return;
+  const totalW=EVENTS.reduce((a,e)=>a+e.w,0);
+  let r=rng()*totalW;
+  for(const e of EVENTS){r-=e.w;if(r<=0){e.fn(G.p);return;}}
+}
+
+// ═══════════════════════════════════════════════════════════
+//   GAME TICK
+// ═══════════════════════════════════════════════════════════
+let lastTs=0,acc=0;
+const TICK=350; // ms per tick at 1×
+function gameLoop(ts){
+  requestAnimationFrame(gameLoop);
+  if(!G.running)return;
+  const dt=Math.min(ts-lastTs,300);lastTs=ts;
+  if(G.paused){renderOverlay();return;}
+  acc+=dt*G.speed;
+  while(acc>=TICK){acc-=TICK;tick();}
+  renderOverlay();
+  // progress bar
+  document.getElementById('progress-bar').style.width=((G.seasonTick/SEASON_LEN)*100)+'%';
+}
+
+function tick(){
+  G.tick++;G.seasonTick++;
+  if(G.seasonTick>=SEASON_LEN){G.seasonTick=0;advanceSeason();}
+  regenerateTileFood();
+  const {cc}=updatePopulation();
+  movePlayer();
+  updateAI();
+  if(G.tick%7===0)maybeEvent();
+  updateHUD(cc);
+  if(G.tick%4===0)drawSpecMain();
+  // Death check
+  if(G.p.pop<.5){killPlayer('Populace vymřela – nula jedinců.');}
+  if(G.p.stress>=1){killPlayer('Nahromaděný ekosystémový stres překročil hranici přežití.');}
+  if(G.p.food<.5&&G.sIdx===3&&G.p.pop<2){killPlayer('Zásoby vyčerpány v zimě.');}
+}
+
+// ═══════════════════════════════════════════════════════════
+//   HUD UPDATE
+// ═══════════════════════════════════════════════════════════
+function updateHUD(cc){
+  const p=G.p;
+  const pop=Math.round(p.pop);
+  cc=cc||calcCC(p);
+  document.getElementById('t-pop').textContent=pop;
+  document.getElementById('t-food').textContent=Math.round(p.food);
+  document.getElementById('t-cc').textContent=cc;
+  document.getElementById('t-mut').textContent=p.mutations;
+  document.getElementById('sg-pop').textContent=pop;
+  document.getElementById('sg-cc').textContent=cc;
+  document.getElementById('sg-food').textContent=Math.round(p.food);
+  document.getElementById('sg-gen').textContent=p.gen;
+  document.getElementById('sg-stress').textContent=Math.round(p.stress*100)+'%';
+  document.getElementById('sg-fit').textContent=Math.round((1-p.stress)*pop*.1+p.tr.adaptability*.3);
+  // eco bars
+  setEco('food',p.eco.food);setEco('pred',p.eco.pred);setEco('comp',p.eco.comp);setEco('clim',p.eco.clim);
+  // HUD chips
+  const tile=getTile(p.x,p.y);
+  document.getElementById('hud-biome').textContent='Biom: '+(BIOMES[tile]?.[2]||'—');
+  document.getElementById('hud-food').textContent='Zásoby: '+Math.round(p.food)+' | Pole: '+G.world.tileFood[Math.floor(p.y)*TW+Math.floor(p.x)].toFixed(1);
+  const threat=Math.round((p.eco.pred+p.eco.food*.5+p.eco.clim*.3)*100);
+  document.getElementById('hud-threat').textContent='Ohrožení: '+threat+'%';
+}
+function setEco(k,v){
+  const pct=Math.round(Math.min(1,v)*100);
+  document.getElementById('eco-'+k).style.width=pct+'%';
+  document.getElementById('eco-'+k+'-v').textContent=pct+'%';
+}
+
+// ═══════════════════════════════════════════════════════════
+//   DEATH & RESTART
+// ═══════════════════════════════════════════════════════════
+function killPlayer(reason){
+  if(!G.running)return;
+  G.running=false;
+  document.getElementById('dead-reason').textContent=reason;
+  document.getElementById('dead-stats').innerHTML=`
+    <div class="dc"><div class="dcn">${G.year}</div><div class="dcl">Přežitých let</div></div>
+    <div class="dc"><div class="dcn">${G.p.mutations}</div><div class="dcl">Mutací</div></div>
+    <div class="dc"><div class="dcn">${G.p.gen}</div><div class="dcl">Generace</div></div>
+    <div class="dc"><div class="dcn">${Math.round(G.p.pop)}</div><div class="dcl">Fin. populace</div></div>
+  `;
+  document.getElementById('scr-dead').classList.remove('hide');
+}
+function restartGame(){
+  document.getElementById('scr-dead').classList.add('hide');
+  document.getElementById('glog').innerHTML='';
+  resetState();
+  buildStartScreen();
+  document.getElementById('scr-start').classList.remove('hide');
+}
+function resetState(){
+  G={running:false,paused:false,speed:1,seed:0,world:null,tick:0,seasonTick:0,sIdx:0,year:1,
+    p:{name:'Primordius',tr:{...DEF_TRAITS},diet:'herbivor',pop:10,food:50,gen:1,mutations:0,
+       x:64,y:48,vx:0,vy:0,eco:{food:0,pred:0,comp:0,clim:0},stress:0,history:[]},
+    species:[],log:[],evoNodes:[],tileFood:null,climate:0};
+}
+
+// ═══════════════════════════════════════════════════════════
+//   SPECIES CANVAS RENDERING
+// ═══════════════════════════════════════════════════════════
+let animT=0;
+function drawCreature(ctx,cx,cy,tr,diet,t,maxR){
+  const sz=Math.min(maxR,18+tr.size*.42);
+  const COLS={herbivor:'#1e9b5e',karnivor:'#c0392b',omnivor:'#c07820',parazit:'#6c3483'};
+  const col=COLS[diet]||'#1e9b5e';
+  const bth=Math.sin(t*1.7)*.042;
+
+  // background halo
+  const halo=ctx.createRadialGradient(cx,cy,0,cx,cy,sz*2.5);
+  halo.addColorStop(0,col+'25');halo.addColorStop(1,'transparent');
+  ctx.beginPath();ctx.arc(cx,cy,sz*2.5,0,Math.PI*2);ctx.fillStyle=halo;ctx.fill();
+
+  // wings (speed)
+  if(tr.speed>58){
+    const wfp=Math.sin(t*3.8)*.28;
+    ctx.fillStyle=col+'44';
+    [[cx,cy,cx-sz*2.4,cy-sz*(1.1+wfp),cx-sz*.22,cy-sz*.28],
+     [cx,cy,cx+sz*2.4,cy-sz*(1.1+wfp),cx+sz*.22,cy-sz*.28]].forEach(pts=>{
+      ctx.beginPath();ctx.moveTo(pts[0],pts[1]);ctx.quadraticCurveTo(pts[2],pts[3],pts[4],pts[5]);ctx.closePath();ctx.fill();
+    });
+  }
+  // armor (defense)
+  if(tr.defense>55){
+    const plates=Math.floor(3+(tr.defense-55)/18);
+    for(let i=0;i<plates;i++){
+      const a=(i/plates)*Math.PI*2+t*.08;
+      ctx.beginPath();ctx.ellipse(cx+Math.cos(a)*sz*.82,cy+Math.sin(a)*sz*.82,sz*.2,sz*.14,a,0,Math.PI*2);
+      ctx.fillStyle=`rgba(70,70,90,${.35+(tr.defense-55)/120})`;ctx.fill();
+    }
+  }
+  // body
+  const bg=ctx.createRadialGradient(cx-sz*.22,cy-sz*.18,sz*.06,cx,cy,sz*(1+bth));
+  bg.addColorStop(0,lc(col,55));bg.addColorStop(.5,col);bg.addColorStop(1,dc(col,35));
+  ctx.beginPath();ctx.ellipse(cx,cy,sz*(1+bth),sz*.8*(1+bth),0,0,Math.PI*2);
+  ctx.fillStyle=bg;ctx.fill();
+  ctx.strokeStyle=lc(col,30);ctx.lineWidth=1.4;ctx.stroke();
+  // limbs
+  const nLimbs=Math.max(2,Math.floor(2+tr.strength/38));
+  for(let i=0;i<nLimbs;i++){
+    const side=i<nLimbs/2?-1:1;
+    const idx=i<nLimbs/2?i:i-Math.ceil(nLimbs/2);
+    const frac=(idx+.5)/Math.ceil(nLimbs/2);
+    const ly=cy-sz*.15+frac*sz*.7,lx=cx+side*sz*.88;
+    const ex=lx+side*(10+tr.strength*.1)+Math.sin(t*2.1+i)*3.5,ey=ly+sz*.28;
+    ctx.beginPath();ctx.moveTo(lx,ly);ctx.quadraticCurveTo((lx+ex)/2,ly+sz*.18,ex,ey);
+    ctx.strokeStyle=col;ctx.lineWidth=2.2+tr.strength/45;ctx.lineCap='round';ctx.stroke();
+  }
+  // parasite tendrils
+  if(diet==='parazit'){
+    for(let i=0;i<6;i++){
+      const a=(i/6)*Math.PI*2+t*.35;
+      const len=sz*.55+Math.sin(t*2.8+i)*sz*.18;
+      ctx.beginPath();ctx.moveTo(cx+Math.cos(a)*sz,cy+Math.sin(a)*sz);
+      ctx.lineTo(cx+Math.cos(a)*(sz+len),cy+Math.sin(a)*(sz+len));
+      ctx.strokeStyle='rgba(108,52,131,.65)';ctx.lineWidth=1.4;ctx.stroke();
+    }
+  }
+  // eyes
+  const eO=sz*.34,eS=3+tr.intelligence*.05;
+  for(const s of[-1,1]){
+    const ex=cx+s*eO*.72,ey=cy-sz*.2;
+    ctx.beginPath();ctx.arc(ex,ey,eS,0,Math.PI*2);ctx.fillStyle='white';ctx.fill();
+    ctx.beginPath();ctx.arc(ex+s*Math.sin(t*.55)*1.3,ey,eS*.52,0,Math.PI*2);ctx.fillStyle='#0d1a10';ctx.fill();
+    if(tr.intelligence>60){ctx.beginPath();ctx.arc(ex,ey,eS,0,Math.PI*2);ctx.strokeStyle=`rgba(255,215,0,${(tr.intelligence-60)/65})`;ctx.lineWidth=1.3;ctx.stroke();}
+  }
+  // teeth
+  if(diet==='karnivor'){
+    ctx.fillStyle='#f0f0f0';
+    for(let i=0;i<4;i++){const tx=cx-7+i*5,ty=cy+sz*.38;ctx.beginPath();ctx.moveTo(tx-2.5,ty);ctx.lineTo(tx,ty+7);ctx.lineTo(tx+2.5,ty);ctx.fill();}
+  }
+  // vision ring
+  if(tr.vision>60){
+    ctx.beginPath();ctx.arc(cx,cy,sz*1.48+Math.sin(t)*.03,0,Math.PI*2);
+    ctx.strokeStyle=`rgba(116,235,213,${(tr.vision-60)/80*.45})`;ctx.lineWidth=.8;ctx.setLineDash([2,6]);ctx.stroke();ctx.setLineDash([]);
+  }
+  // repro sparkles
+  if(tr.reproRate>60&&Math.sin(t*3)>.85){
+    for(let i=0;i<3;i++){
+      const a=Math.random()*Math.PI*2,r=sz*(1+Math.random());
+      ctx.beginPath();ctx.arc(cx+Math.cos(a)*r,cy+Math.sin(a)*r,1.2,0,Math.PI*2);
+      ctx.fillStyle='rgba(255,224,102,.7)';ctx.fill();
+    }
+  }
+}
+function lc(h,a){const r=pr(h);return `rgb(${Math.min(255,r[0]+a)},${Math.min(255,r[1]+a)},${Math.min(255,r[2]+a)})`}
+function dc(h,a){const r=pr(h);return `rgb(${Math.max(0,r[0]-a)},${Math.max(0,r[1]-a)},${Math.max(0,r[2]-a)})`}
+function pr(h){return[parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]}
+
+function drawSpecMain(){
+  const cvs=document.getElementById('cvs-main');
+  if(!cvs||!G.running)return;
+  animT+=.018;
+  const ctx=cvs.getContext('2d');ctx.clearRect(0,0,cvs.width,cvs.height);
+  drawCreature(ctx,cvs.width/2,cvs.height/2,G.p.tr,G.p.diet,animT,cvs.height*.44);
+}
+
+// continuous animation for start/mut screens
+let saLoop=null;
+let saTr=null,saDiet=null,saT=0;
+function startSpecAnim(){
+  if(saLoop)return;
+  function f(){
+    saT+=.02;
+    const c1=document.getElementById('cvs-start');
+    if(c1){const ctx=c1.getContext('2d');ctx.clearRect(0,0,c1.width,c1.height);drawCreature(ctx,100,90,saTr||DEF_TRAITS,saDiet||'herbivor',saT,70);}
+    const c2=document.getElementById('cvs-mut');
+    if(c2){const ctx=c2.getContext('2d');ctx.clearRect(0,0,c2.width,c2.height);drawCreature(ctx,85,75,mutWorkTr||G.p.tr,mutWorkDiet||G.p.diet,saT,58);}
+    saLoop=requestAnimationFrame(f);
+  }
+  saLoop=requestAnimationFrame(f);
+}
+function stopSpecAnim(){cancelAnimationFrame(saLoop);saLoop=null;}
+
+// main spec anim always running
+function mainSpecLoop(){
+  drawSpecMain();requestAnimationFrame(mainSpecLoop);
+}
+
+// ═══════════════════════════════════════════════════════════
+//   EVOLUTION TREE
+// ═══════════════════════════════════════════════════════════
+function addEvoNode(label,extinct){
+  G.evoNodes.push({label,extinct,year:G.year,sIdx:G.sIdx,pop:Math.round(G.p.pop)});
+}
+function drawEvoTree(){
+  const cvs=document.getElementById('etree');if(!cvs)return;
+  cvs.width=document.getElementById('right').clientWidth-2;
+  const W=cvs.width,H=cvs.height;
+  const ctx=cvs.getContext('2d');ctx.clearRect(0,0,W,H);
+  // grid lines
+  ctx.strokeStyle='rgba(79,255,176,.03)';ctx.lineWidth=1;
+  for(let y=0;y<H;y+=25){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+  if(!G.evoNodes.length){
+    ctx.font='9px Fira Code';ctx.fillStyle='#1a3224';ctx.textAlign='center';
+    ctx.fillText('Strom se plní...',W/2,H/2);return;
+  }
+  const n=G.evoNodes.length;
+  const xStep=Math.min(55,(W-30)/(n));
+  let prevX=15,prevY=H-18;
+  G.evoNodes.forEach((nd,i)=>{
+    const x=15+i*xStep;
+    const yFrac=Math.max(.05,1-i/(n+1));
+    const y=H*yFrac*.9+8;
+    // line
+    const grad=ctx.createLinearGradient(prevX,prevY,x,y);
+    grad.addColorStop(0,'rgba(30,155,94,.4)');grad.addColorStop(1,'rgba(79,255,176,.5)');
+    ctx.beginPath();ctx.moveTo(prevX,prevY);ctx.bezierCurveTo(prevX,( prevY+y)/2,x,(prevY+y)/2,x,y);
+    ctx.strokeStyle=nd.extinct?'rgba(255,71,87,.3)':grad;ctx.lineWidth=1.5;ctx.stroke();
+    // glow
+    if(!nd.extinct){const g=ctx.createRadialGradient(x,y,0,x,y,12);g.addColorStop(0,'rgba(79,255,176,.2)');g.addColorStop(1,'transparent');ctx.beginPath();ctx.arc(x,y,12,0,Math.PI*2);ctx.fillStyle=g;ctx.fill();}
+    // node
+    const r=nd.extinct?4:i===n-1?9:6;
+    ctx.beginPath();ctx.arc(x,y,r,0,Math.PI*2);
+    ctx.fillStyle=nd.extinct?'#ff4757':i===n-1?'#4fffb0':'#1e9b5e';ctx.fill();
+    ctx.strokeStyle=nd.extinct?'#c0202c':'rgba(79,255,176,.5)';ctx.lineWidth=1;ctx.stroke();
+    // pop mini-bar
+    if(nd.pop){
+      const bw=Math.min(36,nd.pop*.15);
+      ctx.fillStyle='rgba(79,255,176,.25)';ctx.fillRect(x-bw/2,y+r+2,bw,2);
+    }
+    // label for first and last
+    if(i===0||i===n-1||nd.extinct){
+      ctx.font=`${i===n-1?'600 ':''}9px Fira Code`;
+      ctx.fillStyle=nd.extinct?'rgba(255,71,87,.8)':'rgba(79,255,176,.7)';
+      ctx.textAlign='center';ctx.fillText(nd.label.slice(0,12),x,y-r-4);ctx.textAlign='left';
+    }
+    prevX=x;prevY=y;
+  });
+}
+
+// ═══════════════════════════════════════════════════════════
+//   DISASTER
+// ═══════════════════════════════════════════════════════════
+const DISASTERS=[
+  {n:'🌋 Sopka',fn(){G.p.pop=Math.max(1,G.p.pop*.62);showNotif('🌋 Sopka eruptuje – ztráta 38% populace!','var(--crimson)');addLog('🌋 Sopečná erupce!','bad');G.species.forEach(s=>{if(rng()<.5)s.pop*=.5;});}},
+  {n:'☄️ Meteor',fn(){G.p.pop=Math.max(1,G.p.pop*.45);G.p.food*=.3;G.species.forEach(s=>{if(rng()<.6){s.pop*=.3;}});showNotif('☄️ Meteor dopadl – masové vymírání!','var(--crimson)');addLog('☄️ Impakt meteoru – globální krize.','bad');}},
+  {n:'🔥 Požár',fn(){G.p.food*=.4;if(G.p.diet==='herbivor')G.p.pop*=.78;showNotif('🔥 Lesní požár – vegetace zničena','var(--amber)');addLog('🔥 Lesní požár – herbivores postiženi.','bad');}},
+  {n:'🦠 Epidemie',fn(){const loss=1-(.6-G.p.tr.defense/200);G.p.pop=Math.max(1,G.p.pop*loss);showNotif('🦠 Epidemie – obrana rozhoduje','var(--violet)');addLog('🦠 Epidemie! Obrana: '+G.p.tr.defense,'bad');}},
+  {n:'🌊 Záplava',fn(){showNotif('🌊 Záplava – pobřeží pod vodou','var(--sky)');addLog('🌊 Záplava – pobřežní biomy poškozeny.','bad');for(let i=0;i<TW*TH;i++){if(G.world.tiles[i]===B.SHORE)G.world.tileFood[i]*=.2;}}},
+];
+function doDisaster(){
+  if(!G.running)return;
+  const d=DISASTERS[Math.floor(Math.random()*DISASTERS.length)];
+  d.fn();
+}
+
+// ═══════════════════════════════════════════════════════════
+//   MUTATION EDITOR
+// ═══════════════════════════════════════════════════════════
+let mutWorkTr=null,mutWorkDiet=null;
+const TRAIT_DEFS=[
+  {k:'size',       label:'Velikost',    max:80,desc:'Větší → více HP, pomalejší'},
+  {k:'speed',      label:'Rychlost',    max:90,desc:'Rychlejší pohyb, lepší útěk'},
+  {k:'strength',   label:'Síla',        max:80,desc:'Útok, predace, soupeření'},
+  {k:'intelligence',label:'Inteligence',max:90,desc:'Efektivnější hledání jídla'},
+  {k:'defense',    label:'Obrana',      max:80,desc:'Odolnost vůči predátorům/epidemii'},
+  {k:'reproRate',  label:'Rozmnož.',    max:80,desc:'Rychlost růstu populace'},
+  {k:'adaptability',label:'Adaptabilita',max:80,desc:'Odolnost vůči klimatu a sezónám'},
+  {k:'vision',     label:'Zrak',        max:80,desc:'Dosah hledání potravy a hrozeb'},
+];
+
+function openMut(){
+  if(!G.running)return;
+  mutWorkTr={...G.p.tr};mutWorkDiet=G.p.diet;
+  document.getElementById('mut-sub').textContent=`Rok ${G.year}, ${SEASONS[G.sIdx].name} – max 300 bodů`;
+  buildMutEditor();
+  document.getElementById('scr-mut').classList.remove('hide');
+  startSpecAnim();
+}
+function buildMutEditor(){
+  const w=document.getElementById('mut-traits');
+  w.innerHTML=TRAIT_DEFS.map(t=>`
+    <div class="m-tr-row" title="${t.desc}">
+      <span class="tr-lbl">${t.label}</span>
+      <input type="range" min="5" max="${t.max}" value="${mutWorkTr[t.k]}" id="mt-${t.k}" oninput="onMT('${t.k}',this.value)">
+      <span class="trait-v" id="mv-${t.k}" style="font-family:var(--ff-m);font-size:.62rem;color:var(--gold);text-align:right">${mutWorkTr[t.k]}</span>
+    </div>`).join('');
+  buildDietRow('mut-diet',mutWorkDiet,(d)=>{mutWorkDiet=d;});
+  updateMutPts();
+}
+function onMT(k,v){mutWorkTr[k]=+v;document.getElementById('mv-'+k).textContent=v;updateMutPts();}
+function updateMutPts(){
+  const tot=Object.values(mutWorkTr).reduce((a,b)=>a+b,0);
+  const max=300;
+  const pct=Math.min(100,tot/max*100);
+  document.getElementById('mpt-fill').style.width=pct+'%';
+  document.getElementById('mpt-fill').style.background=tot>max?'var(--crimson)':'linear-gradient(90deg,var(--g2),var(--g0))';
+  document.getElementById('mpt-val').textContent=`${tot}/${max}`;
+}
+function applyMut(){
+  const tot=Object.values(mutWorkTr).reduce((a,b)=>a+b,0);
+  if(tot>300){showNotif('⚠️ Překročen limit 300 bodů!','var(--crimson)');return;}
+  G.p.tr={...mutWorkTr};G.p.diet=mutWorkDiet;
+  G.p.mutations++;G.p.gen++;
+  buildTraitsDisplay();
+  addLog(`⚡ Mutace #${G.p.mutations} – generace ${G.p.gen}`,'good');
+  addEvoNode(`${G.p.name} G${G.p.gen}`,false);
+  drawEvoTree();
+  document.getElementById('scr-mut').classList.add('hide');
+  stopSpecAnim();mutWorkTr=null;mutWorkDiet=null;
+}
+
+// ═══════════════════════════════════════════════════════════
+//   START SCREEN
+// ═══════════════════════════════════════════════════════════
+let startTr={size:35,speed:35,strength:25,intelligence:25,defense:25,reproRate:25,adaptability:25,vision:25};
+// total = 220, max 300
+let startDiet='herbivor';
+
+function buildStartScreen(){
+  startTr={size:35,speed:35,strength:25,intelligence:25,defense:25,reproRate:25,adaptability:25,vision:25};
+  startDiet='herbivor';
+  saTr=startTr;saDiet=startDiet;
+  const w=document.getElementById('start-traits');
+  w.innerHTML=TRAIT_DEFS.map(t=>`
+    <div class="m-tr-row" title="${t.desc}">
+      <span class="tr-lbl">${t.label}</span>
+      <input type="range" min="5" max="${t.max}" value="${startTr[t.k]}" id="st-${t.k}" oninput="onST('${t.k}',this.value)">
+      <span style="font-family:var(--ff-m);font-size:.62rem;color:var(--gold);text-align:right" id="sv-${t.k}">${startTr[t.k]}</span>
+    </div>`).join('');
+  buildDietRow('start-diet',startDiet,(d)=>{startDiet=d;saDiet=d;});
+  updateStartPts();
+}
+function onST(k,v){startTr[k]=+v;saTr={...startTr};document.getElementById('sv-'+k).textContent=v;updateStartPts();}
+function updateStartPts(){
+  const tot=Object.values(startTr).reduce((a,b)=>a+b,0);
+  const max=300;
+  const pct=Math.min(100,tot/max*100);
+  document.getElementById('spt-fill').style.width=pct+'%';
+  document.getElementById('spt-fill').style.background=tot>max?'var(--crimson)':'linear-gradient(90deg,var(--g2),var(--g0))';
+  document.getElementById('spt-val').textContent=`${tot}/${max}`;
+}
+
+function buildDietRow(id,active,onChange){
+  const DIETS=[{k:'herbivor',l:'🌿 Herbivor'},{k:'karnivor',l:'🥩 Karnivor'},{k:'omnivor',l:'🍖 Omnivor'},{k:'parazit',l:'🦠 Parazit'}];
+  document.getElementById(id).innerHTML=DIETS.map(d=>`
+    <button class="db ${active===d.k?'on':''}" onclick="selectDiet('${id}','${d.k}',this)">${d.l}</button>`).join('');
+  document.getElementById(id)._onChange=onChange;
+}
+function selectDiet(id,k,btn){
+  document.querySelectorAll(`#${id} .db`).forEach(b=>b.classList.remove('on'));
+  btn.classList.add('on');
+  document.getElementById(id)._onChange(k);
+}
+
+// ═══════════════════════════════════════════════════════════
+//   START GAME
+// ═══════════════════════════════════════════════════════════
+function startGame(){
+  const tot=Object.values(startTr).reduce((a,b)=>a+b,0);
+  if(tot>300){showNotif('⚠️ Limit 300 bodů překročen!','var(--crimson)');return;}
+  const name=document.getElementById('inp-name').value.trim()||'Primordius';
+  G.seed=Math.floor(Math.random()*0xFFFFFF);
+  G.world=genWorld(G.seed);
+  G.p.name=name;G.p.tr={...startTr};G.p.diet=startDiet;
+  G.p.pop=10;G.p.food=50;G.p.gen=1;G.p.mutations=0;G.p.stress=0;
+  // Find valid start pos
+  let sx,sy,tile;
+  do{sx=15+Math.floor(rng()*(TW-30));sy=15+Math.floor(rng()*(TH-30));tile=G.world.tiles[sy*TW+sx];}
+  while(tile<=B.DEEP||tile>=B.SNOW);
+  G.p.x=sx;G.p.y=sy;G.p.vx=0;G.p.vy=0;
+  G.running=true;G.paused=false;G.tick=0;G.seasonTick=0;G.sIdx=0;G.year=1;
+  spawnSpecies();
+  resizeCanvases();
+  renderTiles();
+  buildTraitsDisplay();
+  buildBiomeLegend();
+  addEvoNode(`${name} – Původ`,false);
+  drawEvoTree();
+  document.getElementById('hud-seed').textContent='SEED: '+G.seed.toString(16).toUpperCase();
+  document.getElementById('spec-name').textContent=name;
+  document.getElementById('diet-disp').textContent={herbivor:'🌿 Herbivor',karnivor:'🥩 Karnivor',omnivor:'🍖 Omnivor',parazit:'🦠 Parazit'}[startDiet];
+  const s=SEASONS[0];
+  document.getElementById('sbadge').textContent=`${s.icon} ${s.name}`;
+  document.getElementById('sbadge').style.color=s.col;document.getElementById('sbadge').style.borderColor=s.bc;
+  document.getElementById('t-season').textContent=s.name;
+  addLog(`🌍 Druh "${name}" se zrodil v ekosystému.`,'imp');
+  addLog('Přežij, mutuj, přizpůsob se.','good');
+  addLog(`Tvoje carrying capacity: ${calcCC(G.p)} jedinců.`,'evt');
+  document.getElementById('scr-start').classList.add('hide');
+  stopSpecAnim();
+  lastTs=performance.now();acc=0;
+}
+
+// ── CANVAS RESIZE ──
+function resizeCanvases(){
+  const mz=document.getElementById('mapzone');
+  const W=mz.clientWidth,H=mz.clientHeight;
+  ['mc','oc'].forEach(id=>{const c=document.getElementById(id);c.width=W;c.height=H;});
+  if(G.world)renderTiles();
+}
+
+// ── TRAITS DISPLAY ──
+function buildTraitsDisplay(){
+  const p=G.p;
+  document.getElementById('tr-display').innerHTML=TRAIT_DEFS.map(t=>{
+    const v=p.tr[t.k];const pct=Math.round(v/t.max*100);
+    const col=v>65?'var(--g0)':v>40?'var(--amber)':'var(--crimson)';
+    return `<div class="tr-row" title="${t.desc}">
+      <span class="tr-lbl">${t.label}</span>
+      <div class="tr-bar"><div class="tr-fill" style="width:${pct}%;background:${col}"></div></div>
+      <span class="tr-v">${v}</span>
+    </div>`;}).join('');
+}
+// ── BIOME LEGEND ──
+function buildBiomeLegend(){
+  document.getElementById('biome-leg').innerHTML=
+    BIOMES.map((b,i)=>`<div class="bl-item"><div class="bl-dot" style="background:${b[0]}"></div>${b[2]}</div>`).join('');
+}
+// ── LOG ──
+function addLog(msg,type=''){
+  const el=document.getElementById('glog');
+  const d=document.createElement('div');d.className='le '+(type||'');
+  const tick=String(G.tick).padStart(5,'0');
+  d.textContent=`[${tick}] ${msg}`;
+  el.appendChild(d);el.scrollTop=el.scrollHeight;
+  if(el.children.length>150)el.removeChild(el.firstChild);
+}
+// ── NOTIF ──
+function showNotif(msg,col='var(--g0)'){
+  const el=document.getElementById('ev-notif');
+  el.textContent=msg;el.style.display='block';
+  el.style.background=`rgba(6,13,8,.9)`;
+  el.style.border=`1px solid ${col}`;el.style.color=col;
+  clearTimeout(el._t);el._t=setTimeout(()=>el.style.display='none',3800);
+}
+// ── SEASON FLASH ──
+function showSeasonFlash(text,col){
+  const el=document.getElementById('season-flash');
+  const t=document.getElementById('sf-txt');
+  t.textContent=text;t.style.color=col;el.style.color=col;
+  el.style.opacity=1;
+  clearTimeout(el._t);el._t=setTimeout(()=>{el.style.opacity=0;},1400);
+}
+// ── SPEED ──
+function setSpd(s){
+  if(s===0){G.paused=!G.paused;}
+  else{G.paused=false;G.speed=s;}
+  document.querySelectorAll('.spd-b').forEach(b=>{
+    const v=b.textContent==='⏸'?0:+b.textContent.replace('×','');
+    b.classList.toggle('on',s===0?(G.paused&&b.textContent==='⏸'):(v===s));
+  });
+}
+// ── HELPERS ──
+function getTile(x,y){const tx=Math.max(0,Math.min(TW-1,Math.floor(x))),ty=Math.max(0,Math.min(TH-1,Math.floor(y)));return G.world.tiles[ty*TW+tx];}
+function dist2(a,b){return Math.sqrt((a.x-b.x)**2+(a.y-b.y)**2);}
+
+// ── TOOLTIP ──
+document.getElementById('mapzone').addEventListener('mousemove',e=>{
+  if(!G.running)return;
+  const mz=document.getElementById('mapzone'),r=mz.getBoundingClientRect();
+  const mx=(e.clientX-r.left)/r.width*TW,my=(e.clientY-r.top)/r.height*TH;
+  const tx=Math.floor(mx),ty=Math.floor(my);
+  if(tx<0||tx>=TW||ty<0||ty>=TH)return;
+  const b=G.world.tiles[ty*TW+tx];const bdata=BIOMES[b];
+  const fd=G.world.tileFood[ty*TW+tx].toFixed(1);
+  const near=G.species.filter(s=>s.alive&&Math.abs(s.x-mx)<6&&Math.abs(s.y-my)<6);
+  const tip=document.getElementById('tip');
+  tip.style.display='block';tip.style.left=(e.clientX+14)+'px';tip.style.top=(e.clientY+14)+'px';
+  tip.innerHTML=`<b>${bdata[2]}</b><br>Potrava: ${fd} / ${bdata[3]}<br>Voda: ${bdata[4]}`+(near.length?`<br><span style="color:hsl(${near[0].hue},65%,60%)">● ${near[0].name} (${Math.round(near[0].pop)})</span>`:'');
+});
+document.getElementById('mapzone').addEventListener('mouseleave',()=>document.getElementById('tip').style.display='none');
+
+// ── MAP CLICK: manual move ──
+document.getElementById('mapzone').addEventListener('click',e=>{
+  if(!G.running)return;
+  const mz=document.getElementById('mapzone'),r=mz.getBoundingClientRect();
+  const tx=(e.clientX-r.left)/r.width*TW,ty=(e.clientY-r.top)/r.height*TH;
+  const tile=G.world.tiles[Math.floor(ty)*TW+Math.floor(tx)];
+  if(tile<=B.DEEP){addLog('🌊 Oceán je nepřístupný.','bad');return;}
+  G.p.x=tx;G.p.y=ty;G.p.vx=0;G.p.vy=0;
+  addLog(`➡ Přesun do ${BIOMES[tile][2]}.`,'evt');
+});
+
+// ── INIT ──
+window.addEventListener('resize',resizeCanvases);
+buildStartScreen();
+buildBiomeLegend();
+startSpecAnim();
+requestAnimationFrame(mainSpecLoop);
+requestAnimationFrame(gameLoop);
+
+/*
+╔══════════════════════════════════════════════════════════════╗
+║   EVOWORLD – HERNÍ SYSTÉM (popis mechanik)                   ║
+╠══════════════════════════════════════════════════════════════╣
+║                                                              ║
+║  1. CARRYING CAPACITY (CC)                                   ║
+║     Každý biom má "carryCapBonus". CC = průměr bonusů        ║
+║     ze všech dlaždic v dosahu zraku hráče, vynásobený        ║
+║     dietou, inteligencí a inverzní velikostí.                ║
+║     CC je maximální udržitelná populace – výše než CC        ║
+║     přidává mortality (overcrowding).                        ║
+║                                                              ║
+║  2. LOGISTICKÝ RŮST  dN/dt = r·N·(1 - N/K) - deaths        ║
+║     r = reproRate / 1200 × sezónní multiplikátor            ║
+║     K = CC                                                   ║
+║     Blíže K → pomalejší růst. Nad K → pokles.               ║
+║                                                              ║
+║  3. TILE FOOD SYSTÉM                                         ║
+║     Každá dlaždice má zásobu potravy (tileFood).             ║
+║     Hráč jídlo sklízí (depletes tiles), dlaždice se          ║
+║     regenerují dle sezóny. Při přemnožení se jídlo           ║
+║     v okolí vyčerpá → food pressure vzroste.                 ║
+║                                                              ║
+║  4. EKOLOGICKÉ TLAKY (eco bars)                              ║
+║     foodPressure:  1 - zásoby / (spotřeba × 8)              ║
+║     predPressure:  počet predátorů × (0.15 - obrana)        ║
+║     compPressure:  soutěžitelé × 0.12                       ║
+║     climPressure:  sezónní stres + klimatický drift          ║
+║                                                              ║
+║  5. STRES                                                    ║
+║     Kumuluje se při celkovém tlaku > 0.5.                    ║
+║     Stress ≥ 1 = smrt druhu.                                 ║
+║                                                              ║
+║  6. SEZÓNY (80 ticků každá)                                  ║
+║     Jaro: foodMul=1.2, reprodMul=1.4 → boom                 ║
+║     Léto: vyvážené                                           ║
+║     Podzim: foodMul=0.75, reprodMul=0.6 → zpomalení         ║
+║     Zima: foodMul=0.3, reprodMul=0.2 → přežití!             ║
+║                                                              ║
+║  7. KLIMATICKÝ DRIFT                                         ║
+║     Každé jaro se globální klima mírně mění.                 ║
+║     Nízká adaptabilita → vyšší zimní stres.                  ║
+║                                                              ║
+║  8. POHYB                                                    ║
+║     Druh se autonomně pohybuje k dlaždici s nejvíce          ║
+║     jídlem (guided by intelligence). Hráč může               ║
+║     kliknout na mapu → manuální přesun.                      ║
+║                                                              ║
+║  9. MUTACE                                                   ║
+║     Každé jaro: upozornění na dostupnou mutaci.              ║
+║     Max 300 bodů celkem. Přerozdel vlastnosti dle            ║
+║     aktuální hrozby (zima → adaptabilita, predátoři          ║
+║     → obrana+rychlost, málo jídla → inteligence).            ║
+╚══════════════════════════════════════════════════════════════╝
+*/
+</script>
+</body>
+</html>
