@@ -1,3 +1,6 @@
 AI nás ze začátku nechápalo takže tvořilo to co nemělo, pak tedy vytvořilo první prototyp. 
 Vypadá dobře ale nefunguje moc jako funguje ale mohlo by to být o dost lepší.
 Vlastně jediný problém je v tom že když vytvoříte jakoukoli mutaci tak ona pořád bude rapidně růst i když bude úplně nejvíce omezená.
+Po přesnějších instrukcích to AI pochopilo velmi dobře, ale je tu možnost a velká pravděpodobnost problému kde je možné že každá menší skupinka pojme hru po svém a 
+vznikne několik jinak provedených verzí na stejné bázi, proto bude potřeba velmi dobré komunikace a domluvy mezi lidmi a skupinami
+Další problém který se vyskytne je grafika a grafické rozhraní, kdybychom tuto hru pojali jakožto SPORE typ hry, tak by byla potřeba grafika a tím pádem by byla potřeba samostatná skupina na grafiku, protože když budě několik možných mutací a budeme je chtít vizualizovat tak nastane problém s vizualizací každé mutace individuálně. Kromě těchto věcí si jinak myslím, že by žádný problém nemusel nastat. 
